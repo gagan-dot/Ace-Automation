@@ -1,0 +1,144 @@
+.processSection {
+  background: var(--bg-light);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 5rem;
+}
+
+.timeline {
+  position: relative;
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2rem 0;
+}
+
+.timelineLineBg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(-50%);
+}
+
+.timelineLineProgress {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--primary), var(--secondary), var(--accent));
+  transform: translateX(-50%);
+  box-shadow: 0 0 15px var(--primary-glow);
+}
+
+.timelineItem {
+  position: relative;
+  width: 50%;
+  margin-bottom: 4rem;
+}
+
+.timelineItem:last-child {
+  margin-bottom: 0;
+}
+
+.left {
+  left: 0;
+  padding-right: 3rem;
+  text-align: right;
+}
+
+.right {
+  left: 50%;
+  padding-left: 3rem;
+  text-align: left;
+}
+
+.timelineContent {
+  background: rgba(17, 17, 17, 0.8);
+  backdrop-filter: blur(10px);
+  padding: 2rem;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  position: relative;
+}
+
+.timelineContent:hover {
+  transform: translateY(-5px);
+  border-color: rgba(0, 212, 255, 0.3);
+}
+
+.stepNumber {
+  position: absolute;
+  top: -20px;
+  font-family: var(--font-display);
+  font-size: 4rem;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.03);
+  z-index: 0;
+}
+
+.left .stepNumber { right: 20px; }
+.right .stepNumber { left: 20px; }
+
+.stepTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+  position: relative;
+  z-index: 1;
+}
+
+.stepDesc {
+  color: var(--text-muted);
+  line-height: 1.6;
+  position: relative;
+  z-index: 1;
+}
+
+.timelineDot {
+  position: absolute;
+  top: 30px;
+  width: 20px;
+  height: 20px;
+  background: var(--bg);
+  border: 4px solid var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 0 15px var(--primary-glow);
+  z-index: 2;
+}
+
+.left .timelineDot {
+  right: -10px;
+}
+
+.right .timelineDot {
+  left: -10px;
+}
+
+@media (max-width: 768px) {
+  .timelineLineBg, .timelineLineProgress {
+    left: 30px;
+  }
+  
+  .timelineItem {
+    width: 100%;
+    left: 0 !important;
+    padding-left: 70px !important;
+    padding-right: 0 !important;
+    text-align: left !important;
+  }
+  
+  .left .timelineDot, .right .timelineDot {
+    left: 20px;
+    right: auto;
+  }
+  
+  .left .stepNumber {
+    left: 20px;
+    right: auto;
+  }
+}

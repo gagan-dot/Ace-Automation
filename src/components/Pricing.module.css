@@ -1,0 +1,115 @@
+.pricingSection {
+  background: var(--bg);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 4rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  align-items: center;
+}
+
+.card {
+  background: rgba(17, 17, 17, 0.4);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 24px;
+  padding: 3rem 2rem;
+  position: relative;
+  transition: all 0.4s ease;
+}
+
+.card:hover {
+  transform: translateY(-10px);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.recommended {
+  background: linear-gradient(145deg, rgba(17, 17, 17, 0.8) 0%, rgba(5, 5, 5, 0.8) 100%);
+  border-color: rgba(0, 212, 255, 0.3);
+  box-shadow: 0 0 40px rgba(0, 212, 255, 0.1);
+  transform: scale(1.05);
+  z-index: 10;
+}
+
+.recommended:hover {
+  transform: scale(1.05) translateY(-10px);
+  border-color: var(--primary);
+  box-shadow: 0 0 50px rgba(0, 212, 255, 0.2);
+}
+
+.badge {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  color: #000;
+  padding: 0.5rem 1.5rem;
+  border-radius: 20px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 20px var(--primary-glow);
+}
+
+.planName {
+  font-size: 1.5rem;
+  color: var(--text);
+  margin-bottom: 1rem;
+}
+
+.priceContainer {
+  margin-bottom: 1rem;
+}
+
+.price {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.description {
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 2rem;
+  min-height: 50px;
+}
+
+.features {
+  list-style: none;
+  margin-bottom: 3rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text);
+}
+
+.checkIcon {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.btn {
+  width: 100%;
+}
+
+@media (max-width: 992px) {
+  .recommended {
+    transform: scale(1);
+  }
+  .recommended:hover {
+    transform: translateY(-10px);
+  }
+}
