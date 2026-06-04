@@ -83,7 +83,7 @@ const Testimonials: React.FC = () => {
             <div 
               key={index} 
               className={styles.card}
-              ref={(el) => (cardsRef.current[index] = el)}
+              ref={(el) => { cardsRef.current[index] = el; }}
             >
               <div className={styles.holoOverlay}></div>
               

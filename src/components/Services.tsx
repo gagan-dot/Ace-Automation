@@ -86,7 +86,7 @@ const Services: React.FC = () => {
             <div
               key={index}
               className={`glass-card ${styles.card}`}
-              ref={(el) => (cardsRef.current[index] = el)}
+              ref={(el) => { cardsRef.current[index] = el; }}
             >
               <div className={styles.iconWrapper}>{service.icon}</div>
               <h3 className={styles.cardTitle}>{service.title}</h3>

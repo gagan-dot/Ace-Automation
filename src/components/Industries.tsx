@@ -58,7 +58,7 @@ const Industries: React.FC = () => {
             <div
               key={index}
               className={styles.industryItem}
-              ref={(el) => (itemsRef.current[index] = el)}
+              ref={(el) => { itemsRef.current[index] = el; }}
             >
               <div className={styles.iconContainer}>
                 {industry.icon}

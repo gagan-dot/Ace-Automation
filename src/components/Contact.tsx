@@ -8,7 +8,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const Contact: React.FC = () => {
   const sectionRef = useRef<HTMLElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
   const infoRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

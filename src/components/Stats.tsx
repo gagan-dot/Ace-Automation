@@ -55,7 +55,7 @@ const Stats: React.FC = () => {
             <div key={index} className={styles.statItem}>
               <h3 
                 className={styles.statValue}
-                ref={(el) => (countersRef.current[index] = el)}
+                ref={(el) => { countersRef.current[index] = el; }}
               >
                 0{stat.suffix}
               </h3>

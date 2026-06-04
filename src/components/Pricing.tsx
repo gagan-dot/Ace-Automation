@@ -84,7 +84,7 @@ const Pricing: React.FC = () => {
             <div 
               key={index}
               className={`${styles.card} ${plan.recommended ? styles.recommended : ''}`}
-              ref={(el) => (cardsRef.current[index] = el)}
+              ref={(el) => { cardsRef.current[index] = el; }}
             >
               {plan.recommended && <div className={styles.badge}>Recommended</div>}
               

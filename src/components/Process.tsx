@@ -72,7 +72,7 @@ const Process: React.FC = () => {
             <div 
               key={index} 
               className={`${styles.timelineItem} ${index % 2 === 0 ? styles.left : styles.right}`}
-              ref={(el) => (stepsRef.current[index] = el)}
+              ref={(el) => { stepsRef.current[index] = el; }}
             >
               <div className={styles.timelineContent}>
                 <div className={styles.stepNumber}>{item.step}</div>
