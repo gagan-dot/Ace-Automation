@@ -11,7 +11,7 @@ const testimonials = [
     name: 'Sarah Jenkins',
     company: 'Global Retail Co.',
     rating: 5,
-    text: 'Ace Automation completely transformed our customer service. Their AI chatbots handle thousands of inquiries daily, freeing up our team for complex issues.',
+    text: 'Aace Automation completely transformed our customer service. Their AI chatbots handle thousands of inquiries daily, freeing up our team for complex issues.',
     image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=2574&auto=format&fit=crop',
   },
   {

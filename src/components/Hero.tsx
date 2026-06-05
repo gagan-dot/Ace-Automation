@@ -76,7 +76,7 @@ const Hero: React.FC = () => {
         {/* Left Column: Content */}
         <div className={styles.textContent}>
           <div className={styles.badge}>
-            <span className={styles.badgeDot}></span> ACE AUTOMATION AGENCY
+            <span className={styles.badgeDot}></span> AACE AUTOMATION AGENCY
           </div>
           <h1 ref={titleRef} className="heading-xl">
             Automate Your Business.<br /><span className="text-gradient">Scale Without Limits.</span>

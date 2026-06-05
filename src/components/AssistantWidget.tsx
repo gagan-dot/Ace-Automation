@@ -5,7 +5,7 @@ import styles from './AssistantWidget.module.css';
 const AssistantWidget: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { type: 'bot', text: 'Hi there! I am Ace, your AI assistant. How can I help you automate your business today?' }
+    { type: 'bot', text: 'Hi there! I am Aace, your AI assistant. How can I help you automate your business today?' }
   ]);
   const [input, setInput] = useState('');
 
@@ -34,7 +34,7 @@ const AssistantWidget: React.FC = () => {
               <div className={styles.pulse}></div>
             </div>
             <div>
-              <h4 className={styles.botName}>Ace AI</h4>
+              <h4 className={styles.botName}>Aace AI</h4>
               <span className={styles.botStatus}>Online</span>
             </div>
           </div>

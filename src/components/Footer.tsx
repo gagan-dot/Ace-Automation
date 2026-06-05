@@ -7,7 +7,7 @@ const Footer: React.FC = () => {
       <div className="container">
         <div className={styles.grid}>
           <div className={styles.brandCol}>
-            <h2 className={styles.logo}>ACE <span className="text-gradient">AUTOMATION</span></h2>
+            <h2 className={styles.logo}>AACE <span className="text-gradient">AUTOMATION</span></h2>
             <p className={styles.tagline}>"Automating Businesses. Accelerating Growth."</p>
           </div>
           
@@ -28,7 +28,7 @@ const Footer: React.FC = () => {
         </div>
         
         <div className={styles.bottom}>
-          <p>&copy; {new Date().getFullYear()} Ace Automation. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Aace Automation. All rights reserved.</p>
         </div>
       </div>
     </footer>

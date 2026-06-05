@@ -114,13 +114,13 @@ const Contact: React.FC = () => {
                   </div>
                 </a>
 
-                <a href="mailto:hello@aceautomation.ai" className={styles.actionBtn}>
+                <a href="mailto:hello@aaceautomation.ai" className={styles.actionBtn}>
                   <div className={`${styles.iconWrapper} ${styles.mail}`}>
                     <Mail size={24} />
                   </div>
                   <div className={styles.actionText}>
                     <span>Email Us</span>
-                    <small>hello@aceautomation.ai</small>
+                    <small>hello@aaceautomation.ai</small>
                   </div>
                 </a>
               </div>

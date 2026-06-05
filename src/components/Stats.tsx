@@ -47,7 +47,7 @@ const Stats: React.FC = () => {
     <section className={`section ${styles.statsSection}`} ref={sectionRef}>
       <div className="container">
         <div className={styles.header}>
-          <h2 className="heading-lg">Why Choose <span className="text-gradient">Ace Automation</span></h2>
+          <h2 className="heading-lg">Why Choose <span className="text-gradient">Aace Automation</span></h2>
         </div>
         
         <div className={styles.grid}>

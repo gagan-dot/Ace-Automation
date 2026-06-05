@@ -20,7 +20,7 @@ const Navbar: React.FC = () => {
     <nav className={`${styles.navbar} ${scrolled ? styles.scrolled : ''}`}>
       <div className={`container ${styles.navContainer}`}>
         <Link to="/" className={styles.logo}>
-          <span className={styles.logoText}>ACE <span className="text-gradient">AUTOMATION</span></span>
+          <span className={styles.logoText}>AACE <span className="text-gradient">AUTOMATION</span></span>
         </Link>
 
         <div className={`${styles.navLinks} ${mobileMenuOpen ? styles.open : ''}`}>
