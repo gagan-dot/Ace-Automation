@@ -91,6 +91,9 @@ const Hero: React.FC = () => {
             <button className="btn btn-primary" onClick={() => navigate('/consultation')}>
               Book Free Consultation <ArrowRight size={20} />
             </button>
+            <button className="btn btn-outline" onClick={() => navigate('/admin')}>
+              Open CRM Dashboard <ArrowRight size={20} />
+            </button>
           </div>
 
           <div className={styles.guaranteeBadge}>

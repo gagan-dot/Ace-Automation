@@ -73,6 +73,30 @@
   font-size: 0.95rem;
 }
 
+.dashboardBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 8px;
+  background: rgba(0, 212, 255, 0.06);
+  text-decoration: none;
+  transition: all 0.3s ease;
+  letter-spacing: 0.02em;
+}
+
+.dashboardBtn:hover {
+  background: rgba(0, 212, 255, 0.15);
+  border-color: rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 16px rgba(0, 212, 255, 0.2);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
 .mobileToggle {
   display: none;
   color: var(--text);
