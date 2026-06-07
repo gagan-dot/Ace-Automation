@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import { ArrowLeft, Send, CheckCircle2, AlertCircle } from 'lucide-react';
 import styles from './Consultation.module.css';
+import { trackLead } from '../utils/crm';
 
 const Consultation: React.FC = () => {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ const Consultation: React.FC = () => {
     );
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -48,8 +49,22 @@ const Consultation: React.FC = () => {
       return;
     }
 
-    // Simulate form submission success
-    setIsSubmitted(true);
+    const success = await trackLead({
+      name,
+      company: businessName || 'N/A',
+      phone,
+      email: 'N/A',
+      service: requirement,
+      message: 'AI Consultation Booking Request',
+      source: 'Consultation',
+      status: 'New'
+    });
+
+    if (success) {
+      setIsSubmitted(true);
+    } else {
+      setError('Failed to submit request. Please try again.');
+    }
   };
 
   return (

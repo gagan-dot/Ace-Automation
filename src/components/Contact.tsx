@@ -4,6 +4,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { Send, MessageCircle, Calendar, Mail, Phone, MapPin } from 'lucide-react';
 import styles from './Contact.module.css';
+import { trackLead, trackWhatsAppClick, trackCallClick } from '../utils/crm';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -46,10 +47,33 @@ const Contact: React.FC = () => {
     }
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Simulate submission
-    alert('Thank you! We will contact you soon.');
+    const formData = new FormData(e.currentTarget);
+    const fullName = formData.get('fullName') as string;
+    const companyName = formData.get('companyName') as string;
+    const phone = formData.get('phone') as string;
+    const email = formData.get('email') as string;
+    const service = formData.get('service') as string;
+    const message = formData.get('message') as string;
+
+    const success = await trackLead({
+      name: fullName,
+      company: companyName,
+      phone,
+      email,
+      service,
+      message,
+      source: 'Form',
+      status: 'New'
+    });
+
+    if (success) {
+      alert('Thank you! We will contact you soon.');
+      e.currentTarget.reset();
+    } else {
+      alert('Failed to send message. Please try again.');
+    }
   };
 
   return (
@@ -64,24 +88,24 @@ const Contact: React.FC = () => {
           <div className={styles.formContainer} ref={formRef}>
             <form className={styles.form} onSubmit={handleSubmit}>
               <div className={styles.inputGroup}>
-                <input type="text" placeholder="Name" required className={styles.input} />
-                <input type="text" placeholder="Company Name" className={styles.input} />
+                <input type="text" name="fullName" placeholder="Name" required className={styles.input} />
+                <input type="text" name="companyName" placeholder="Company Name" className={styles.input} />
               </div>
               <div className={styles.inputGroup}>
-                <input type="tel" placeholder="Phone" required className={styles.input} />
-                <input type="email" placeholder="Email" required className={styles.input} />
+                <input type="tel" name="phone" placeholder="Phone" required className={styles.input} />
+                <input type="email" name="email" placeholder="Email" required className={styles.input} />
               </div>
               
-              <select className={styles.select} required defaultValue="">
+              <select name="service" className={styles.select} required defaultValue="">
                 <option value="" disabled>Service Interested In</option>
-                <option value="website">Website Development</option>
-                <option value="chatbot">AI Chatbots</option>
-                <option value="whatsapp">WhatsApp Automation</option>
-                <option value="workflow">Workflow Automation</option>
-                <option value="other">Other</option>
+                <option value="Website Development">Website Development</option>
+                <option value="AI Chatbots">AI Chatbots</option>
+                <option value="WhatsApp Automation">WhatsApp Automation</option>
+                <option value="Workflow Automation">Workflow Automation</option>
+                <option value="Other">Other</option>
               </select>
               
-              <textarea placeholder="Message" rows={5} required className={styles.textarea}></textarea>
+              <textarea name="message" placeholder="Message" rows={5} required className={styles.textarea}></textarea>
               
               <button type="submit" className="btn btn-primary">
                 Send Message <Send size={20} />
@@ -95,7 +119,13 @@ const Contact: React.FC = () => {
               <p className={styles.infoDesc}>Connect with our AI experts directly through your preferred channel.</p>
               
               <div className={styles.actionButtons}>
-                <a href="https://wa.me/917000563768" target="_blank" rel="noopener noreferrer" className={styles.actionBtn}>
+                <a 
+                  href="https://wa.me/917000563768" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className={styles.actionBtn}
+                  onClick={trackWhatsAppClick}
+                >
                   <div className={`${styles.iconWrapper} ${styles.whatsapp}`}>
                     <MessageCircle size={24} />
                   </div>
@@ -143,8 +173,8 @@ const Contact: React.FC = () => {
                   <Phone size={20} className={styles.detailIcon} />
                   <div>
                     <h4>Phone Numbers</h4>
-                    <p style={{ marginBottom: '0.25rem' }}><a href="tel:7000563768" className={styles.detailLink}>+91 7000563768</a></p>
-                    <p><a href="tel:9165699823" className={styles.detailLink}>+91 9165699823</a></p>
+                    <p style={{ marginBottom: '0.25rem' }}><a href="tel:7000563768" className={styles.detailLink} onClick={trackCallClick}>+91 7000563768</a></p>
+                    <p><a href="tel:9165699823" className={styles.detailLink} onClick={trackCallClick}>+91 9165699823</a></p>
                   </div>
                 </div>
 

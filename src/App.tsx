@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // Pages
 import Home from './pages/Home';
 import Consultation from './pages/Consultation';
+import AdminDashboard from './pages/AdminDashboard';
 
 // Components
 import Navbar from './components/Navbar';
@@ -14,6 +15,25 @@ import AssistantWidget from './components/AssistantWidget';
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
+
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
+
+  return (
+    <div className="app-container">
+      {!isAdmin && <div className="cyber-grid"></div>}
+      {!isAdmin && <Navbar />}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/consultation" element={<Consultation />} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
+      {!isAdmin && <Footer />}
+      {!isAdmin && <AssistantWidget />}
+    </div>
+  );
+};
 
 const App: React.FC = () => {
   const appRef = useRef<HTMLDivElement>(null);
@@ -30,15 +50,8 @@ const App: React.FC = () => {
 
   return (
     <Router>
-      <div className="app-container" ref={appRef} style={{ opacity: 0 }}>
-        <div className="cyber-grid"></div>
-        <Navbar />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/consultation" element={<Consultation />} />
-        </Routes>
-        <Footer />
-        <AssistantWidget />
+      <div ref={appRef} style={{ opacity: 0 }}>
+        <AppContent />
       </div>
     </Router>
   );
