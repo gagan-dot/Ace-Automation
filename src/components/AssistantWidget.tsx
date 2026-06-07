@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send } from 'lucide-react';
 import styles from './AssistantWidget.module.css';
 
@@ -8,21 +8,56 @@ const AssistantWidget: React.FC = () => {
     { type: 'bot', text: 'Hi there! I am Aace, your AI assistant. How can I help you automate your business today?' }
   ]);
   const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const chatBodyRef = useRef<HTMLDivElement>(null);
 
-  const handleSend = (e: React.FormEvent) => {
+  // Auto-scroll to bottom
+  useEffect(() => {
+    if (chatBodyRef.current) {
+      chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
+
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
     
-    setMessages([...messages, { type: 'user', text: input }]);
+    const userMessage = input.trim();
+    setMessages(prev => [...prev, { type: 'user', text: userMessage }]);
     setInput('');
-    
-    // Simulate bot response
-    setTimeout(() => {
-      setMessages(prev => [...prev, { 
-        type: 'bot', 
-        text: 'Thanks for reaching out! One of our human experts will review your request and get back to you shortly. In the meantime, feel free to browse our services.' 
-      }]);
-    }, 1000);
+    setIsTyping(true);
+
+    try {
+      const historyToSend = [
+        ...messages.map(m => ({
+          role: m.type === 'user' ? 'user' : 'model',
+          content: m.text
+        })),
+        { role: 'user', content: userMessage }
+      ];
+
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: historyToSend })
+      });
+
+      if (!response.ok) {
+        throw new Error('API server error');
+      }
+
+      const data = await response.json();
+      if (data.text) {
+        setMessages(prev => [...prev, { type: 'bot', text: data.text }]);
+      } else {
+        setMessages(prev => [...prev, { type: 'bot', text: 'Sorry, I encountered an issue processing that. Please try again.' }]);
+      }
+    } catch (err) {
+      console.error('Failed to communicate with AI Assistant:', err);
+      setMessages(prev => [...prev, { type: 'bot', text: 'I am having trouble connecting right now. Please check your internet or try again later!' }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   return (
@@ -43,12 +78,19 @@ const AssistantWidget: React.FC = () => {
           </button>
         </div>
         
-        <div className={styles.chatBody}>
+        <div className={styles.chatBody} ref={chatBodyRef}>
           {messages.map((msg, idx) => (
             <div key={idx} className={`${styles.message} ${styles[msg.type]}`}>
               {msg.text}
             </div>
           ))}
+          {isTyping && (
+            <div className={styles.typingIndicator}>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+          )}
         </div>
         
         <form className={styles.chatFooter} onSubmit={handleSend}>
@@ -58,8 +100,9 @@ const AssistantWidget: React.FC = () => {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             className={styles.chatInput}
+            disabled={isTyping}
           />
-          <button type="submit" className={styles.sendBtn}>
+          <button type="submit" className={styles.sendBtn} disabled={isTyping || !input.trim()}>
             <Send size={18} />
           </button>
         </form>

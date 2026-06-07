@@ -42,7 +42,7 @@ interface Lead {
   budget: string;
   followupDate: string;
   message: string;
-  source: 'Form' | 'Consultation' | 'WhatsApp' | 'Call' | 'Manual';
+  source: 'Form' | 'Consultation' | 'WhatsApp' | 'Call' | 'Manual' | 'Chatbot';
   status: 'New' | 'Interested' | 'Hot Lead' | 'Not Interested' | 'Follow Up';
   notes: string;
   timestamp: string;
@@ -451,6 +451,7 @@ const AdminDashboard: React.FC = () => {
   const sourceWhatsAppCount = leads.filter(l => l.source === 'WhatsApp').length;
   const sourceCallCount = leads.filter(l => l.source === 'Call').length;
   const sourceManualCount = leads.filter(l => l.source === 'Manual').length;
+  const sourceChatbotCount = leads.filter(l => l.source === 'Chatbot').length;
 
   const totalVal = totalLeads || 1;
   const pctForm = (sourceFormCount / totalVal) * 100;
@@ -458,6 +459,7 @@ const AdminDashboard: React.FC = () => {
   const pctWhatsApp = (sourceWhatsAppCount / totalVal) * 100;
   const pctCall = (sourceCallCount / totalVal) * 100;
   const pctManual = (sourceManualCount / totalVal) * 100;
+  const pctChatbot = (sourceChatbotCount / totalVal) * 100;
 
   // Monthly trend chart computations
   const getMonthlyData = () => {
@@ -720,6 +722,11 @@ const AdminDashboard: React.FC = () => {
                           strokeDasharray={`${pctManual} ${100 - pctManual}`} 
                           strokeDashoffset={`${25 - pctForm - pctConsultation - pctWhatsApp - pctCall}`}>
                         </circle>
+                        {/* Chatbot - Cyan */}
+                        <circle cx="21" cy="21" r="15.915" fill="transparent" stroke="#06b6d4" strokeWidth="4" 
+                          strokeDasharray={`${pctChatbot} ${100 - pctChatbot}`} 
+                          strokeDashoffset={`${25 - pctForm - pctConsultation - pctWhatsApp - pctCall - pctManual}`}>
+                        </circle>
                       </svg>
                     </div>
                     <div className={styles.donutLegend}>
@@ -742,6 +749,10 @@ const AdminDashboard: React.FC = () => {
                       <div className={styles.legendItem}>
                         <span className={styles.legendLabel}><span className={styles.legendColor} style={{ backgroundColor: '#fb7185' }}></span>Manual Input</span>
                         <span className={styles.legendValue}>{sourceManualCount}</span>
+                      </div>
+                      <div className={styles.legendItem}>
+                        <span className={styles.legendLabel}><span className={styles.legendColor} style={{ backgroundColor: '#06b6d4' }}></span>Aace AI Chatbot</span>
+                        <span className={styles.legendValue}>{sourceChatbotCount}</span>
                       </div>
                     </div>
                   </div>
@@ -902,6 +913,7 @@ const AdminDashboard: React.FC = () => {
                     <option value="whatsapp">WhatsApp</option>
                     <option value="call">Call Link</option>
                     <option value="manual">Manual Entry</option>
+                    <option value="chatbot">Aace Chatbot</option>
                   </select>
                   <select 
                     className={styles.filterSelect}
@@ -1432,6 +1444,7 @@ const AdminDashboard: React.FC = () => {
                       <option value="Consultation">AI Consultation Hub</option>
                       <option value="WhatsApp">WhatsApp Message Link</option>
                       <option value="Call">Direct Call Action</option>
+                      <option value="Chatbot">Aace AI Chatbot</option>
                     </select>
                   </div>
 
@@ -1598,6 +1611,24 @@ const AdminDashboard: React.FC = () => {
                     </div>
                     <div className={styles.chartBarBg}>
                       <div className={styles.chartBarFill} style={{ width: `${pctCall}%`, backgroundColor: '#eab308' }}></div>
+                    </div>
+                  </div>
+                  <div className={styles.chartItem}>
+                    <div className={styles.chartLabelRow}>
+                      <span>Aace AI Chatbot</span>
+                      <span>{sourceChatbotCount} Inquiries</span>
+                    </div>
+                    <div className={styles.chartBarBg}>
+                      <div className={styles.chartBarFill} style={{ width: `${pctChatbot}%`, backgroundColor: '#06b6d4' }}></div>
+                    </div>
+                  </div>
+                  <div className={styles.chartItem}>
+                    <div className={styles.chartLabelRow}>
+                      <span>Manual Input</span>
+                      <span>{sourceManualCount} Inquiries</span>
+                    </div>
+                    <div className={styles.chartBarBg}>
+                      <div className={styles.chartBarFill} style={{ width: `${pctManual}%`, backgroundColor: '#fb7185' }}></div>
                     </div>
                   </div>
                 </div>

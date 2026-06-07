@@ -5,7 +5,7 @@ export interface LeadData {
   email?: string;
   service?: string;
   message?: string;
-  source: 'Form' | 'Consultation' | 'WhatsApp' | 'Call';
+  source: 'Form' | 'Consultation' | 'WhatsApp' | 'Call' | 'Chatbot';
   status?: 'New' | 'Interested' | 'Hot Lead' | 'Not Interested';
 }
 

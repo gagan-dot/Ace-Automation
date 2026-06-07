@@ -13,6 +13,12 @@ dist-ssr
 *.local
 data/
 
+# Environment Variables (NEVER push to GitHub)
+.env
+.env.local
+.env.production
+.env.development
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
