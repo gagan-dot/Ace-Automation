@@ -38,6 +38,15 @@
   width: fit-content;
 }
 
+.highlightBadge {
+  background: linear-gradient(90deg, rgba(0, 212, 255, 0.2) 0%, rgba(123, 97, 255, 0.2) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.5);
+  box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
 .badgeDot {
   width: 8px;
   height: 8px;

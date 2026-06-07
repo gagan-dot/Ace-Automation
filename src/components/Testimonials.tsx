@@ -8,25 +8,25 @@ gsap.registerPlugin(ScrollTrigger);
 
 const testimonials = [
   {
-    name: 'Sarah Jenkins',
-    company: 'Global Retail Co.',
+    name: 'Ramesh Kumar',
+    company: 'RK Builders & Developers',
     rating: 5,
-    text: 'Aace Automation completely transformed our customer service. Their AI chatbots handle thousands of inquiries daily, freeing up our team for complex issues.',
-    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?q=80&w=2574&auto=format&fit=crop',
+    text: 'Aace Automation ne humari construction company ke liye ek kamal ka WhatsApp automation aur AI chatbot banaya. Ab hamare site inquiries khud follow up ho jaati hain aur lead conversion mein bhi bahut fark aaya hai.',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=2574&auto=format&fit=crop',
   },
   {
-    name: 'Michael Chen',
-    company: 'NextGen Finance',
+    name: 'Radha Rani',
+    company: 'Radha Rani Tour & Travels',
     rating: 5,
-    text: 'The custom CRM and WhatsApp automation they built for us increased our lead conversion rate by 40%. The ROI was immediate.',
-    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=2670&auto=format&fit=crop',
+    text: 'Pehle booking ke liye baar baar call karna padta tha. Ab Aace Automation ka WhatsApp automation system sab kuch handle karta hai — booking confirmation, reminders aur cancellations bhi. Business 2x ho gaya!',
+    image: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=2574&auto=format&fit=crop',
   },
   {
-    name: 'Elena Rodriguez',
-    company: 'Prime Real Estate',
+    name: 'Dr. Suresh Agarwal',
+    company: 'Agarwal Health & Wellness Clinic',
     rating: 5,
-    text: 'Our new 3D website is lightyears ahead of our competitors. It’s not just beautiful; it’s a high-converting machine that books consultations automatically.',
-    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?q=80&w=2670&auto=format&fit=crop',
+    text: 'Clinic ke appointments, reminders aur patient follow-ups sab AI automation se manage ho rahe hain. Staff ka kaafi time bach raha hai aur patients bhi bahut khush hain. Sach mein ek zabardast solution hai.',
+    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?q=80&w=2670&auto=format&fit=crop',
   },
 ];
 

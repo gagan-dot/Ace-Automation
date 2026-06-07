@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Send, MessageCircle, Calendar, Mail } from 'lucide-react';
+import { Send, MessageCircle, Calendar, Mail, Phone, MapPin } from 'lucide-react';
 import styles from './Contact.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -94,7 +95,7 @@ const Contact: React.FC = () => {
               <p className={styles.infoDesc}>Connect with our AI experts directly through your preferred channel.</p>
               
               <div className={styles.actionButtons}>
-                <a href="#" className={styles.actionBtn}>
+                <a href="https://wa.me/917000563768" target="_blank" rel="noopener noreferrer" className={styles.actionBtn}>
                   <div className={`${styles.iconWrapper} ${styles.whatsapp}`}>
                     <MessageCircle size={24} />
                   </div>
@@ -104,7 +105,7 @@ const Contact: React.FC = () => {
                   </div>
                 </a>
                 
-                <a href="#" className={styles.actionBtn}>
+                <Link to="/consultation" className={styles.actionBtn}>
                   <div className={`${styles.iconWrapper} ${styles.calendar}`}>
                     <Calendar size={24} />
                   </div>
@@ -112,17 +113,48 @@ const Contact: React.FC = () => {
                     <span>Schedule Meeting</span>
                     <small>Book a free consultation</small>
                   </div>
-                </a>
+                </Link>
 
-                <a href="mailto:hello@aaceautomation.ai" className={styles.actionBtn}>
+                <a href="mailto:info@aaceautomation.com" className={styles.actionBtn}>
                   <div className={`${styles.iconWrapper} ${styles.mail}`}>
                     <Mail size={24} />
                   </div>
                   <div className={styles.actionText}>
                     <span>Email Us</span>
-                    <small>hello@aaceautomation.ai</small>
+                    <small>info@aaceautomation.com</small>
                   </div>
                 </a>
+              </div>
+            </div>
+
+            <div className={styles.infoCard} style={{ marginTop: '2rem' }}>
+              <h3 className={styles.infoTitle}>Contact Details & Location</h3>
+              
+              <div className={styles.detailsGroup}>
+                <div className={styles.detailItem}>
+                  <MapPin size={20} className={styles.detailIcon} />
+                  <div>
+                    <h4>Location</h4>
+                    <p>C73 phase 3 Dhanwantri Nagar, Jabalpur, MP, 482003</p>
+                  </div>
+                </div>
+
+                <div className={styles.detailItem}>
+                  <Phone size={20} className={styles.detailIcon} />
+                  <div>
+                    <h4>Phone Numbers</h4>
+                    <p style={{ marginBottom: '0.25rem' }}><a href="tel:7000563768" className={styles.detailLink}>+91 7000563768</a></p>
+                    <p><a href="tel:9165699823" className={styles.detailLink}>+91 9165699823</a></p>
+                  </div>
+                </div>
+
+                <div className={styles.detailItem}>
+                  <Mail size={20} className={styles.detailIcon} />
+                  <div>
+                    <h4>Official Mail</h4>
+                    <p><a href="mailto:info@aaceautomation.com" className={styles.detailLink}>info@aaceautomation.com</a></p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

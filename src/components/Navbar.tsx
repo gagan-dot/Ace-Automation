@@ -26,11 +26,10 @@ const Navbar: React.FC = () => {
         <div className={`${styles.navLinks} ${mobileMenuOpen ? styles.open : ''}`}>
           <a href="#home" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>Home</a>
           <a href="#services" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>Services</a>
-          <a href="#solutions" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>Solutions</a>
           <a href="#portfolio" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>Portfolio</a>
           <a href="#about" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>About</a>
           <a href="#contact" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>Contact</a>
-          <a href="#contact" className={`btn btn-primary ${styles.ctaBtn}`} onClick={() => setMobileMenuOpen(false)}>
+          <a href="tel:7000563768" className={`btn btn-primary ${styles.ctaBtn}`} onClick={() => setMobileMenuOpen(false)}>
             Book Free Strategy Call
           </a>
         </div>

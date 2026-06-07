@@ -3,6 +3,7 @@ import Hero from '../components/Hero';
 import Services from '../components/Services';
 import Industries from '../components/Industries';
 import Stats from '../components/Stats';
+import About from '../components/About';
 import Process from '../components/Process';
 import Portfolio from '../components/Portfolio';
 import Testimonials from '../components/Testimonials';
@@ -21,6 +22,7 @@ const Home: React.FC = () => {
       <Services />
       <Industries />
       <Stats />
+      <About />
       <Process />
       <Portfolio />
       <Testimonials />

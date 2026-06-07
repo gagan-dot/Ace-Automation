@@ -5,6 +5,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 // Pages
 import Home from './pages/Home';
+import Consultation from './pages/Consultation';
 
 // Components
 import Navbar from './components/Navbar';
@@ -34,6 +35,7 @@ const App: React.FC = () => {
         <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/consultation" element={<Consultation />} />
         </Routes>
         <Footer />
         <AssistantWidget />

@@ -1,9 +1,11 @@
 import React, { useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import gsap from 'gsap';
 import styles from './Hero.module.css';
 import { ArrowRight, BrainCircuit, Globe, MessageCircle, BarChart, Mic, CheckCircle } from 'lucide-react';
 
 const Hero: React.FC = () => {
+  const navigate = useNavigate();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const subtitleRef = useRef<HTMLParagraphElement>(null);
   const buttonsRef = useRef<HTMLDivElement>(null);
@@ -75,8 +77,8 @@ const Hero: React.FC = () => {
         
         {/* Left Column: Content */}
         <div className={styles.textContent}>
-          <div className={styles.badge}>
-            <span className={styles.badgeDot}></span> AACE AUTOMATION AGENCY
+          <div className={`${styles.badge} ${styles.highlightBadge}`}>
+            <span className={styles.badgeDot}></span> PAY IF U LIKE
           </div>
           <h1 ref={titleRef} className="heading-xl">
             Automate Your Business.<br /><span className="text-gradient">Scale Without Limits.</span>
@@ -86,11 +88,8 @@ const Hero: React.FC = () => {
           </p>
           
           <div ref={buttonsRef} className={styles.buttonGroup}>
-            <button className="btn btn-primary">
+            <button className="btn btn-primary" onClick={() => navigate('/consultation')}>
               Book Free Consultation <ArrowRight size={20} />
-            </button>
-            <button className="btn btn-outline">
-               View Case Studies
             </button>
           </div>
 
@@ -106,11 +105,11 @@ const Hero: React.FC = () => {
 
           <div ref={statsRef} className={styles.statsRow}>
             <div className={styles.statItem}>
-              <h3>100+</h3>
+              <h3>2</h3>
               <p>Projects Delivered</p>
             </div>
             <div className={styles.statItem}>
-              <h3>70%</h3>
+              <h3>40%</h3>
               <p>Time Saved</p>
             </div>
             <div className={styles.statItem}>

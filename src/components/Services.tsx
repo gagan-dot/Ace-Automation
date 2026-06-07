@@ -19,7 +19,7 @@ const servicesData = [
   },
   {
     icon: <MessageSquare size={40} color="#00FFE0" />,
-    title: 'AI Chatbots',
+    title: 'AI Automation',
     description: '24/7 customer support and lead qualification.',
   },
   {

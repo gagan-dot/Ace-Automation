@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ExternalLink, ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft } from 'lucide-react';
 import styles from './Portfolio.module.css';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -100,9 +100,6 @@ const Portfolio: React.FC = () => {
                     <span className={styles.category}>{item.category}</span>
                     <h3 className={styles.title}>{item.title}</h3>
                     <p className={styles.description}>{item.description}</p>
-                    <a href="#" className={styles.viewLink}>
-                      View Case Study <ExternalLink size={16} />
-                    </a>
                   </div>
                 </div>
               );

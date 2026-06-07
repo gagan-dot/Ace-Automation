@@ -7,7 +7,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const processSteps = [
   { step: '01', title: 'Business Analysis', desc: 'Deep dive into your current operations to identify automation opportunities.' },
-  { step: '02', title: 'Automation Strategy', desc: 'Custom blueprint designing the perfect AI and automation architecture.' },
+  { step: '02', title: 'Automation Strategy', desc: 'AI automation strategy custom blueprint to design the perfect AI and automation architecture.' },
   { step: '03', title: 'Development', desc: 'Building your custom AI agents, websites, and automation workflows.' },
   { step: '04', title: 'Testing', desc: 'Rigorous QA to ensure seamless integration and flawless execution.' },
   { step: '05', title: 'Deployment', desc: 'Launching your new automated systems into your live business environment.' },
