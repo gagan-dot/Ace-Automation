@@ -3,6 +3,7 @@ import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { google } from 'googleapis';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,7 +38,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Secure, unique bucket and key on kvdb.io for Ace CRM Leads
-const BUCKET_URL = 'https://kvdb.io/aceCrmV1BucketSecure9/leads';
+const BUCKET_URL = 'https://kvdb.io/V4TQt7fSBUGeEVCRoyMwdf/leads';
 
 const generateMockLeads = () => {
   return [
@@ -122,12 +123,94 @@ const writeLeads = async (leads) => {
   }
 };
 
+// ============ ADMIN AUTH SYSTEM ============
+
+app.get('/api/admin/status', (req, res) => {
+  res.json({ 
+    exists: true, 
+    name: 'Admin',
+    maskedEmail: 'ad***@aaceautomation.com',
+    maskedPhone: '91****3768'
+  });
+});
+
+app.post('/api/admin/setup', (req, res) => {
+  res.status(400).json({ error: 'Admin account already exists. Use login instead.' });
+});
+
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  const validPassword = process.env.ADMIN_PASSWORD || 'aceadmin123';
+  if (!password) {
+    return res.status(400).json({ error: 'Password is required.' });
+  }
+  if (password === validPassword) {
+    res.json({ success: true, name: 'Admin' });
+  } else {
+    res.status(401).json({ error: 'Invalid password. Access denied.' });
+  }
+});
+
+app.post('/api/admin/verify-identity', (req, res) => {
+  res.status(400).json({ error: 'Password reset not supported in serverless mode. Please contact developer.' });
+});
+
+app.post('/api/admin/verify-otp', (req, res) => {
+  res.status(400).json({ error: 'Not supported.' });
+});
+
+app.post('/api/admin/reset-password', (req, res) => {
+  res.status(400).json({ error: 'Not supported.' });
+});
+
 // GET: Retrieve all leads
 app.get('/api/leads', async (req, res) => {
   const leads = await readLeads();
   leads.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   res.json(leads);
 });
+
+// ============ GOOGLE SHEETS HELPER ============
+const appendToGoogleSheet = async (rowData) => {
+  try {
+    const sheetId = process.env.GOOGLE_SHEET_ID;
+    const keyJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+
+    if (!sheetId || sheetId === 'your_google_sheet_id_here' || !keyJson || keyJson === 'your_service_account_json_here') {
+      console.log('📊 [DEV MODE] Google Sheets not configured. Row would be:', rowData);
+      return { success: false, dev: true };
+    }
+
+    let credentials;
+    try {
+      credentials = JSON.parse(keyJson);
+    } catch {
+      console.error('Invalid GOOGLE_SERVICE_ACCOUNT_KEY JSON');
+      return { success: false, error: 'Invalid credentials JSON' };
+    }
+
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    });
+
+    const sheets = google.sheets({ version: 'v4', auth });
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: 'Sheet1!A:J',
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values: [rowData],
+      },
+    });
+
+    console.log('✅ Google Sheets: Row appended successfully');
+    return { success: true };
+  } catch (err) {
+    console.error('❌ Google Sheets error:', err.message);
+    return { success: false, error: err.message };
+  }
+};
 
 // POST: Add a new lead
 app.post('/api/leads', async (req, res) => {
@@ -156,6 +239,22 @@ app.post('/api/leads', async (req, res) => {
   };
 
   leads.push(newLead);
+  
+  // Also push to Google Sheets
+  const sheetRow = [
+    new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+    name,
+    phone,
+    company || 'N/A',
+    service,
+    budget || 'N/A',
+    'No', // meetingBooked
+    newLead.status,
+    message || 'Form Submission',
+    newLead.id,
+  ];
+  await appendToGoogleSheet(sheetRow);
+
   if (await writeLeads(leads)) {
     res.status(201).json(newLead);
   } else {
@@ -459,5 +558,98 @@ app.post('/api/chat', async (req, res) => {
     return res.status(500).json({ error: 'Failed to communicate with AI Assistant. ' + error.message });
   }
 });
+
+// ============ VAPI WEBHOOK — Meeting Booking ============
+
+// POST: Vapi calls this after every voice call ends with transcript + summary
+app.post('/api/vapi-webhook', async (req, res) => {
+  try {
+    const payload = req.body;
+    const eventType = payload?.message?.type;
+
+    console.log('📞 Vapi Webhook received:', eventType);
+
+    // Only process end-of-call reports
+    if (eventType !== 'end-of-call-report') {
+      return res.json({ received: true });
+    }
+
+    const summary    = payload?.message?.analysis?.summary || '';
+    const transcript = payload?.message?.transcript || '';
+    const callId     = payload?.message?.call?.id || `call_${Date.now()}`;
+
+    // Extract structured data from Vapi's analysis or fallback to transcript parsing
+    const structuredData = payload?.message?.analysis?.structuredData || {};
+
+    const name     = structuredData.clientName     || extractField(transcript, ['name', 'naam', 'mera naam', 'main hoon', "i'm", "i am", "my name is"]) || 'Voice Lead';
+    const phone    = structuredData.clientPhone    || extractField(transcript, ['number', 'mobile', 'phone', 'contact', 'whatsapp', 'no.']) || 'N/A';
+    const business = structuredData.clientBusiness || extractField(transcript, ['business', 'company', 'kaam', 'shop', 'firm', 'startup', 'kya karta']) || 'N/A';
+    const service  = structuredData.serviceNeeded  || extractField(transcript, ['website', 'automation', 'crm', 'workflow', 'voice agent', 'revamp']) || summary.split('.')[0] || 'N/A';
+    const budget   = structuredData.budget         || extractField(transcript, ['budget', 'kitna', 'price', 'cost', 'paisa', 'amount']) || 'N/A';
+    const meetingBooked = structuredData.meetingBooked || summary.toLowerCase().includes('meeting') || summary.toLowerCase().includes('consultation');
+
+    const notes = [
+      meetingBooked ? '📅 Meeting Booked via Voice Agent' : '📞 Voice Call — No meeting booked',
+      `Business: ${business}`,
+      `Summary: ${summary.slice(0, 300)}`,
+    ].join(' | ');
+
+    // ── Save to CRM (KVDB leads) ──
+    const leads = await readLeads();
+    const newLead = {
+      id: `vapi_${callId}`,
+      name,
+      company: business,
+      phone,
+      email: 'N/A',
+      city: '',
+      service,
+      budget,
+      followupDate: meetingBooked ? new Date(Date.now() + 86400000).toISOString().split('T')[0] : '',
+      message: summary || 'Voice Agent call',
+      source: 'AI Voice Agent',
+      status: meetingBooked ? 'Hot Lead' : 'New',
+      notes,
+      timestamp: new Date().toISOString(),
+    };
+    leads.push(newLead);
+    await writeLeads(leads);
+    console.log('✅ CRM updated — Lead:', name, '|', phone);
+
+    // ── Save to Google Sheets ──
+    const sheetRow = [
+      new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      name,
+      phone,
+      business,
+      service,
+      budget,
+      meetingBooked ? 'Yes ✅' : 'No',
+      newLead.status,
+      summary.slice(0, 500),
+      callId,
+    ];
+    await appendToGoogleSheet(sheetRow);
+
+    return res.json({ success: true, leadId: newLead.id });
+  } catch (err) {
+    console.error('Vapi webhook error:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// Helper: simple keyword-based field extraction from transcript text
+const extractField = (text, keywords) => {
+  if (!text) return null;
+  const lines = text.toLowerCase().split('\n');
+  for (const line of lines) {
+    if (keywords.some(kw => line.includes(kw))) {
+      // Extract the part after the keyword colon or comma
+      const match = line.match(/[:\-]\s*([\w\s+@.]{3,40})/);
+      if (match) return match[1].trim();
+    }
+  }
+  return null;
+};
 
 export default app;
