@@ -28,7 +28,7 @@ const AssistantWidget: React.FC = () => {
   const [callDuration, setCallDuration] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
   const vapiRef = useRef<any>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Auto-scroll chat
   useEffect(() => {
