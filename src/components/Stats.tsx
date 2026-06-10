@@ -7,7 +7,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 const statsData = [
   { value: 500, suffix: '+', label: 'Processes Automated' },
-  { value: 2, suffix: '', label: 'Projects Delivered' },
+  { value: 3, suffix: '', label: 'Projects Delivered' },
   { value: 24, suffix: '/7', label: 'AI Support' },
   { value: 40, suffix: '%', label: 'Time Saved' },
   { value: 3, suffix: 'x', label: 'Faster Response Times' },

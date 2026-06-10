@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -7,6 +7,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import Home from './pages/Home';
 import Consultation from './pages/Consultation';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminLogin from './pages/AdminLogin';
 
 // Components
 import Navbar from './components/Navbar';
@@ -15,6 +16,18 @@ import AssistantWidget from './components/AssistantWidget';
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
+
+const ProtectedAdmin: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('ace_admin_auth') === 'true';
+  });
+
+  if (!isAuthenticated) {
+    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+  }
+
+  return <AdminDashboard />;
+};
 
 const AppContent: React.FC = () => {
   const location = useLocation();
@@ -27,7 +40,7 @@ const AppContent: React.FC = () => {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/consultation" element={<Consultation />} />
-        <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin" element={<ProtectedAdmin />} />
       </Routes>
       {!isAdmin && <Footer />}
       {!isAdmin && <AssistantWidget />}
