@@ -15,6 +15,7 @@ const Consultation: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [businessName, setBusinessName] = useState('');
   const [requirement, setRequirement] = useState('');
+  const [message, setMessage] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
 
@@ -55,7 +56,7 @@ const Consultation: React.FC = () => {
       phone,
       email: 'N/A',
       service: requirement,
-      message: 'AI Consultation Booking Request',
+      message: message || 'AI Consultation Booking Request',
       source: 'Consultation',
       status: 'New'
     });
@@ -170,6 +171,18 @@ const Consultation: React.FC = () => {
                       <option value="Other">Other Services / Custom Requirements</option>
                     </select>
                   </div>
+                </div>
+
+                <div className={styles.inputGroup}>
+                  <label htmlFor="message" className={styles.label}>Custom Query / Additional Details</label>
+                  <textarea
+                    id="message"
+                    placeholder="Tell us more about your requirements..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    className={styles.input}
+                    style={{ minHeight: '100px', resize: 'vertical' }}
+                  />
                 </div>
 
                 <button type="submit" className={`btn btn-primary ${styles.submitBtn}`}>

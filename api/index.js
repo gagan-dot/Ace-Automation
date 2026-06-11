@@ -38,7 +38,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Secure, unique bucket and key on kvdb.io for Ace CRM Leads
-const BUCKET_URL = 'https://kvdb.io/V4TQt7fSBUGeEVCRoyMwdf/leads';
+const BUCKET_URL = 'https://kvdb.io/5BjKLgotf5YNQPbFqtySXH/leads';
 
 const generateMockLeads = () => {
   return [
