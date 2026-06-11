@@ -1,45 +1,66 @@
 .whatsappWidget {
   position: fixed;
-  bottom: 30px;
-  left: 30px;
-  width: 60px;
-  height: 60px;
-  background-color: #25D366;
+  bottom: 11rem; /* Places it above the Assistant widget stack */
+  right: 2rem;
+  width: 58px;
+  height: 58px;
+  background: linear-gradient(135deg, #25D366, #128C7E);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.4);
+  box-shadow: 0 8px 24px rgba(37, 211, 102, 0.45);
   cursor: pointer;
-  z-index: 1000;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  z-index: 9999;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
   text-decoration: none;
+  animation: floatWa 3s ease-in-out infinite, pulseGlow 2s infinite alternate;
+}
+
+@keyframes floatWa {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0px); }
+}
+
+@keyframes pulseGlow {
+  0% { box-shadow: 0 0 10px rgba(37, 211, 102, 0.4); }
+  100% { box-shadow: 0 0 30px rgba(37, 211, 102, 0.8), 0 0 15px rgba(37, 211, 102, 0.6) inset; }
 }
 
 .whatsappWidget:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 16px rgba(37, 211, 102, 0.6);
+  transform: scale(1.15) translateY(-4px);
+  box-shadow: 0 12px 32px rgba(37, 211, 102, 0.7);
+  animation: none; /* Stop floating on hover */
 }
 
 .whatsappWidget svg {
-  width: 35px;
-  height: 35px;
+  width: 34px;
+  height: 34px;
   fill: #fff;
+  transition: transform 0.3s ease;
+}
+
+.whatsappWidget:hover svg {
+  transform: rotate(-10deg) scale(1.1);
 }
 
 /* Tooltip */
 .tooltip {
   position: absolute;
-  left: 75px;
-  background: rgba(10, 10, 10, 0.9);
+  right: 75px; /* Appears to the left of the button now */
+  background: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(10px);
   color: #fff;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 0.9rem;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
-  transition: opacity 0.3s ease, visibility 0.3s ease;
+  transform: translateX(10px);
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   border: 1px solid rgba(37, 211, 102, 0.3);
   pointer-events: none;
 }
@@ -47,4 +68,18 @@
 .whatsappWidget:hover .tooltip {
   opacity: 1;
   visibility: visible;
+  transform: translateX(0);
+}
+
+@media (max-width: 480px) {
+  .whatsappWidget {
+    right: 1.25rem;
+    bottom: 10.5rem;
+    width: 52px;
+    height: 52px;
+  }
+  .whatsappWidget svg {
+    width: 28px;
+    height: 28px;
+  }
 }
