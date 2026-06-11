@@ -809,6 +809,175 @@ const appendToGoogleSheet = async (rowData) => {
   }
 };
 
+// ============ WHATSAPP WEBHOOK ============
+
+const getWaSession = async (phone) => {
+  try {
+    const res = await fetch(`https://kvdb.io/5BjKLgotf5YNQPbFqtySXH/wa_${phone}`);
+    if (res.ok) {
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    }
+  } catch (e) {}
+  return [];
+};
+
+const saveWaSession = async (phone, sessionData) => {
+  try {
+    await fetch(`https://kvdb.io/5BjKLgotf5YNQPbFqtySXH/wa_${phone}`, {
+      method: 'POST',
+      body: JSON.stringify(sessionData)
+    });
+  } catch (e) {}
+};
+
+const sendWhatsAppMessage = async (to, text) => {
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneId) return;
+
+  await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      messaging_product: "whatsapp",
+      to: to,
+      type: "text",
+      text: { body: text }
+    })
+  });
+};
+
+// GET: Webhook verification for Meta
+app.get('/api/whatsapp-webhook', (req, res) => {
+  const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN || 'aceadmin123';
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  if (mode && token) {
+    if (mode === 'subscribe' && token === verifyToken) {
+      return res.status(200).send(challenge);
+    }
+    return res.sendStatus(403);
+  }
+  return res.sendStatus(400);
+});
+
+// POST: Receive WhatsApp Messages
+app.post('/api/whatsapp-webhook', async (req, res) => {
+  try {
+    const body = req.body;
+    if (body.object) {
+      if (body.entry && body.entry[0].changes && body.entry[0].changes[0].value.messages && body.entry[0].changes[0].value.messages[0]) {
+        const message = body.entry[0].changes[0].value.messages[0];
+        const from = message.from; // Phone number
+        const msgBody = message.text?.body;
+
+        if (msgBody) {
+          // Immediately acknowledge receipt to Meta
+          res.sendStatus(200);
+
+          // Get Session
+          const contents = await getWaSession(from);
+          contents.push({ role: 'user', parts: [{ text: msgBody }] });
+
+          // Gemini API Setup
+          const apiKey = process.env.GEMINI_API_KEY;
+          if (!apiKey) return;
+
+          const toolDeclarations = [{
+            name: "book_consultation",
+            description: "Register a client booking or lead in the CRM. Call this ONLY when you have sequentially collected Name, Business Name, Budget, Services, and Contact Number.",
+            parameters: {
+              type: "OBJECT",
+              properties: {
+                name: { type: "STRING" },
+                phone: { type: "STRING" },
+                company: { type: "STRING" },
+                budget: { type: "STRING" },
+                service: { type: "STRING" },
+                is_hot_lead: { type: "BOOLEAN" },
+                email: { type: "STRING" },
+                message: { type: "STRING" }
+              },
+              required: ["name", "phone", "company", "budget", "service", "is_hot_lead"]
+            }
+          }];
+
+          const makeGeminiReq = async (currContents) => {
+            const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: currContents,
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                tools: [{ functionDeclarations: toolDeclarations }]
+              })
+            });
+            return await resp.json();
+          };
+
+          let geminiResp = await makeGeminiReq(contents);
+          let candidate = geminiResp.candidates?.[0];
+          let functionCallPart = candidate?.content?.parts?.find(p => p.functionCall);
+
+          let replyText = "";
+
+          if (functionCallPart) {
+            const { name: funcName, args } = functionCallPart.functionCall;
+            if (funcName === "book_consultation") {
+              const leads = readLeads();
+              const newLead = {
+                id: `wa_${Date.now()}`,
+                name: args.name,
+                company: args.company || 'N/A',
+                phone: args.phone || from,
+                email: args.email || 'N/A',
+                city: '',
+                service: args.service || 'N/A',
+                budget: args.budget || 'Not specified',
+                followupDate: '',
+                message: args.message || 'Booked via WhatsApp AI.',
+                source: 'WhatsApp',
+                status: args.is_hot_lead ? 'Hot Lead' : 'New',
+                notes: 'Auto-created by WhatsApp AI.',
+                timestamp: new Date().toISOString()
+              };
+              leads.push(newLead);
+              writeLeads(leads);
+
+              contents.push(candidate.content);
+              contents.push({
+                role: 'tool',
+                parts: [{ functionResponse: { name: "book_consultation", response: { success: true } } }]
+              });
+
+              const finalResp = await makeGeminiReq(contents);
+              replyText = finalResp.candidates?.[0]?.content?.parts?.find(p => p.text)?.text || "Thanks! We've noted your details.";
+            }
+          } else {
+            replyText = candidate?.content?.parts?.find(p => p.text)?.text || "Sorry, I couldn't process that.";
+            contents.push(candidate.content);
+          }
+
+          await sendWhatsAppMessage(from, replyText);
+          await saveWaSession(from, contents);
+          return;
+        }
+      }
+      return res.sendStatus(200);
+    }
+    return res.sendStatus(404);
+  } catch (err) {
+    console.error(err);
+    return res.sendStatus(500);
+  }
+});
+
 // ============ VAPI WEBHOOK — Meeting Booking ============
 
 // POST: Vapi calls this after every voice call ends with transcript + summary
