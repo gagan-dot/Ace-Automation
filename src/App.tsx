@@ -13,6 +13,7 @@ import AdminLogin from './pages/AdminLogin';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AssistantWidget from './components/AssistantWidget';
+import WhatsAppWidget from './components/WhatsAppWidget';
 
 // Register GSAP plugins
 gsap.registerPlugin(ScrollTrigger);
@@ -44,6 +45,7 @@ const AppContent: React.FC = () => {
       </Routes>
       {!isAdmin && <Footer />}
       {!isAdmin && <AssistantWidget />}
+      {!isAdmin && <WhatsAppWidget />}
     </div>
   );
 };
