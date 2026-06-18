@@ -9,46 +9,38 @@ export interface LeadData {
   status?: 'New' | 'Interested' | 'Hot Lead' | 'Not Interested';
 }
 
-// LocalStorage key — same as admin CRM panel uses
-const CRM_STORAGE_KEY = 'ace_crm_leads';
-
-function generateId(): string {
-  return 'lead_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-}
-
 /**
- * Saves a lead record to localStorage so it appears in the admin CRM panel.
+ * Sends a lead to the server API (/api/leads).
+ * On Vercel, this is handled by api/index.js which saves to KVDB cloud database.
+ * Both the website form and admin CRM panel read from the same KVDB database.
  */
 export const trackLead = async (data: LeadData): Promise<boolean> => {
   try {
-    // Read existing leads
-    const existing = JSON.parse(localStorage.getItem(CRM_STORAGE_KEY) || '[]');
+    const response = await fetch('/api/leads', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: data.name,
+        company: data.company || 'N/A',
+        phone: data.phone || 'N/A',
+        email: data.email || 'N/A',
+        service: data.service || 'N/A',
+        message: data.message || '',
+        source: data.source,
+        status: data.status || 'New',
+      }),
+    });
 
-    // Build the new lead object (same format as admin crm.js)
-    const newLead = {
-      id: generateId(),
-      name: data.name,
-      phone: data.phone || '',
-      email: data.email || '',
-      city: '',
-      source: data.source === 'Form' ? 'Website Form'
-            : data.source === 'WhatsApp' ? 'WhatsApp'
-            : data.source === 'Call' ? 'Phone Call'
-            : data.source === 'Chatbot' ? 'Chatbot'
-            : 'Other',
-      status: data.status || 'New',
-      service: data.service || '',
-      budget: '',
-      notes: [data.company ? `Company: ${data.company}` : '', data.message || ''].filter(Boolean).join('\n'),
-      followupDate: '',
-      date: new Date().toISOString(),
-    };
+    if (!response.ok) {
+      const errorMsg = await response.text();
+      console.error('CRM tracking failed:', errorMsg);
+      return false;
+    }
 
-    // Add to front of list and save
-    existing.unshift(newLead);
-    localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(existing));
-
-    console.log('Lead saved to CRM:', newLead);
+    const result = await response.json();
+    console.log('Lead saved to CRM:', result);
     return true;
   } catch (error) {
     console.error('CRM tracking error:', error);
