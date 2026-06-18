@@ -9,27 +9,46 @@ export interface LeadData {
   status?: 'New' | 'Interested' | 'Hot Lead' | 'Not Interested';
 }
 
+// LocalStorage key — same as admin CRM panel uses
+const CRM_STORAGE_KEY = 'ace_crm_leads';
+
+function generateId(): string {
+  return 'lead_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
 /**
- * Sends a lead record to the backend CRM.
+ * Saves a lead record to localStorage so it appears in the admin CRM panel.
  */
 export const trackLead = async (data: LeadData): Promise<boolean> => {
   try {
-    const response = await fetch('/api/leads', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(data),
-    });
+    // Read existing leads
+    const existing = JSON.parse(localStorage.getItem(CRM_STORAGE_KEY) || '[]');
 
-    if (!response.ok) {
-      const errorMsg = await response.text();
-      console.error('CRM tracking failed:', errorMsg);
-      return false;
-    }
+    // Build the new lead object (same format as admin crm.js)
+    const newLead = {
+      id: generateId(),
+      name: data.name,
+      phone: data.phone || '',
+      email: data.email || '',
+      city: '',
+      source: data.source === 'Form' ? 'Website Form'
+            : data.source === 'WhatsApp' ? 'WhatsApp'
+            : data.source === 'Call' ? 'Phone Call'
+            : data.source === 'Chatbot' ? 'Chatbot'
+            : 'Other',
+      status: data.status || 'New',
+      service: data.service || '',
+      budget: '',
+      notes: [data.company ? `Company: ${data.company}` : '', data.message || ''].filter(Boolean).join('\n'),
+      followupDate: '',
+      date: new Date().toISOString(),
+    };
 
-    const result = await response.json();
-    console.log('CRM tracking successful:', result);
+    // Add to front of list and save
+    existing.unshift(newLead);
+    localStorage.setItem(CRM_STORAGE_KEY, JSON.stringify(existing));
+
+    console.log('Lead saved to CRM:', newLead);
     return true;
   } catch (error) {
     console.error('CRM tracking error:', error);
