@@ -126,9 +126,9 @@ const AdminDashboard: React.FC = () => {
       }
       const data = await response.json();
       setLeads(data);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      setError(err.message || 'Could not connect to CRM backend.');
+      setError(err instanceof Error ? err.message : 'Could not connect to CRM backend.');
       showToast('Error loading leads. Check backend status.', 'error');
     } finally {
       setLoading(false);
@@ -136,11 +136,14 @@ const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchLeads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Reset page number on search filter change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setCurrentPage(1);
   }, [searchTerm, sourceFilter, statusFilter, pageSize]);
 
@@ -156,7 +159,7 @@ const AdminDashboard: React.FC = () => {
       
       setLeads(prev => prev.map(lead => lead.id === id ? { ...lead, status: newStatus } : lead));
       showToast(`Lead status updated to "${newStatus}"`);
-    } catch (err) {
+    } catch {
       showToast('Error updating lead status.', 'error');
     }
   };
@@ -175,7 +178,7 @@ const AdminDashboard: React.FC = () => {
       setLeads(prev => prev.map(lead => lead.id === id ? { ...lead, notes: newNotes } : lead));
       setTimeout(() => setSavingNoteId(''), 1000);
       showToast('Admin notes auto-saved');
-    } catch (err) {
+    } catch {
       setSavingNoteId('');
       showToast('Error saving lead notes.', 'error');
     }
@@ -194,7 +197,7 @@ const AdminDashboard: React.FC = () => {
       setLeads(prev => prev.filter(lead => lead.id !== id));
       setSelectedLeads(prev => prev.filter(selectedId => selectedId !== id));
       showToast('Lead deleted successfully');
-    } catch (err) {
+    } catch {
       showToast('Error deleting lead.', 'error');
     }
   };
@@ -220,7 +223,7 @@ const AdminDashboard: React.FC = () => {
       showToast(`Successfully updated ${selectedLeads.length} leads to "${status}"`);
       setSelectedLeads([]);
       setBulkStatus('');
-    } catch (err) {
+    } catch {
       showToast('Bulk status update failed.', 'error');
     }
   };
@@ -241,7 +244,7 @@ const AdminDashboard: React.FC = () => {
       setLeads(prev => prev.filter(lead => !selectedLeads.includes(lead.id)));
       showToast(`Successfully deleted ${selectedLeads.length} leads`);
       setSelectedLeads([]);
-    } catch (err) {
+    } catch {
       showToast('Bulk delete operation failed.', 'error');
     }
   };
@@ -299,7 +302,7 @@ const AdminDashboard: React.FC = () => {
 
       resetForm();
       setActiveTab('leads');
-    } catch (err) {
+    } catch {
       showToast('Failed to save lead info.', 'error');
     }
   };
@@ -361,7 +364,7 @@ const AdminDashboard: React.FC = () => {
       setLeads(prev => prev.map(lead => lead.id === detailedLead.id ? { ...lead, status: modalStatus, notes: modalNotes } : lead));
       showToast('Lead details updated');
       setDetailedLead(null);
-    } catch (err) {
+    } catch {
       showToast('Failed to update lead.', 'error');
     }
   };
@@ -395,8 +398,8 @@ const AdminDashboard: React.FC = () => {
   });
 
   const sortedLeads = [...filteredLeads].sort((a, b) => {
-    let valA = a[sortField] || '';
-    let valB = b[sortField] || '';
+    const valA = a[sortField] || '';
+    const valB = b[sortField] || '';
 
     if (typeof valA === 'string' && typeof valB === 'string') {
       return sortDirection === 'asc' 

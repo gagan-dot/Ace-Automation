@@ -120,7 +120,7 @@ const Contact: React.FC = () => {
               
               <div className={styles.actionButtons}>
                 <a 
-                  href="https://wa.me/917000563768" 
+                  href="https://wa.me/918817441489" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   className={styles.actionBtn}
@@ -173,7 +173,7 @@ const Contact: React.FC = () => {
                   <Phone size={20} className={styles.detailIcon} />
                   <div>
                     <h4>Phone Numbers</h4>
-                    <p style={{ marginBottom: '0.25rem' }}><a href="tel:7000563768" className={styles.detailLink} onClick={trackCallClick}>+91 7000563768</a></p>
+                    <p style={{ marginBottom: '0.25rem' }}><a href="tel:8817441489" className={styles.detailLink} onClick={trackCallClick}>+91 8817441489</a></p>
                     <p><a href="tel:9165699823" className={styles.detailLink} onClick={trackCallClick}>+91 9165699823</a></p>
                   </div>
                 </div>

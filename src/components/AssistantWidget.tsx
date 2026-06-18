@@ -27,6 +27,7 @@ const AssistantWidget: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const vapiRef = useRef<any>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -43,7 +44,6 @@ const AssistantWidget: React.FC = () => {
       timerRef.current = setInterval(() => setCallDuration(p => p + 1), 1000);
     } else {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      setCallDuration(0);
     }
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [callStatus]);
@@ -54,8 +54,8 @@ const AssistantWidget: React.FC = () => {
   // ─── Reset Vapi instance (fixes connection errors on retry) ─
   const destroyVapi = () => {
     if (vapiRef.current) {
-      try { vapiRef.current.stop(); } catch (_) {}
-      try { vapiRef.current.removeAllListeners?.(); } catch (_) {}
+      try { vapiRef.current.stop(); } catch { /* ignore */ }
+      try { vapiRef.current.removeAllListeners?.(); } catch { /* ignore */ }
       vapiRef.current = null;
     }
   };
@@ -71,6 +71,7 @@ const AssistantWidget: React.FC = () => {
 
       vapiRef.current.on('call-start', () => {
         setCallStatus('connected');
+        setCallDuration(0);
         setIsMuted(false);
         setIsSpeaking(false);
       });
@@ -84,15 +85,17 @@ const AssistantWidget: React.FC = () => {
       vapiRef.current.on('speech-start', () => setIsSpeaking(true));
       vapiRef.current.on('speech-end', () => setIsSpeaking(false));
 
-      vapiRef.current.on('error', (err: any) => {
+      vapiRef.current.on('error', (err: unknown) => {
         console.error('Vapi Error:', err);
         // Safely extract string message from potentially nested error object
-        const extractMsg = (e: any): string => {
+        const extractMsg = (e: unknown): string => {
           if (!e) return 'Unknown error';
           if (typeof e === 'string') return e;
-          if (typeof e?.message === 'string') return e.message;
-          if (typeof e?.error?.message === 'string') return e.error.message;
-          if (typeof e?.error?.msg === 'string') return e.error.msg;
+          const errObj = e as Record<string, unknown>;
+          if (typeof errObj?.message === 'string') return errObj.message;
+          const nestedErr = errObj?.error as Record<string, unknown> | undefined;
+          if (typeof nestedErr?.message === 'string') return nestedErr.message;
+          if (typeof nestedErr?.msg === 'string') return nestedErr.msg;
           return 'Connection failed. Please try again.';
         };
         setErrorMsg(extractMsg(err));
@@ -201,9 +204,10 @@ IMPORTANT meeting booking rules:
         serverUrl: `${window.location.origin}/api/vapi-webhook`,
       });
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Vapi start failed:', err);
-      setErrorMsg(err?.message || 'Failed to connect. Please try again.');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to connect. Please try again.';
+      setErrorMsg(errorMessage);
       setCallStatus('error');
       destroyVapi();
     }
@@ -212,6 +216,7 @@ IMPORTANT meeting booking rules:
   const endCall = () => {
     destroyVapi();
     setCallStatus('idle');
+    setCallDuration(0);
     setIsSpeaking(false);
     setIsMuted(false);
     setErrorMsg('');
@@ -226,7 +231,7 @@ IMPORTANT meeting booking rules:
     const next = !isMuted;
     setIsMuted(next);
     if (vapiRef.current) {
-      try { vapiRef.current.setMuted(next); } catch (_) {}
+      try { vapiRef.current.setMuted(next); } catch { /* ignore */ }
     }
   };
 

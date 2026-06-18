@@ -83,12 +83,21 @@ const Pricing: React.FC = () => {
         { opacity: 1, scale: 1, y: 0, duration: 0.4, ease: 'back.out(1.5)' }
       );
     }
+
+    if (showModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [showModal]);
 
   const openModal = (planName: string) => {
     setSelectedPlan(planName);
     setShowModal(true);
-    document.body.style.overflow = 'hidden';
   };
 
   const closeModal = () => {
@@ -97,12 +106,10 @@ const Pricing: React.FC = () => {
         opacity: 0, scale: 0.9, y: 20, duration: 0.25, ease: 'power2.in',
         onComplete: () => {
           setShowModal(false);
-          document.body.style.overflow = '';
         }
       });
     } else {
       setShowModal(false);
-      document.body.style.overflow = '';
     }
   };
 
@@ -190,7 +197,7 @@ const Pricing: React.FC = () => {
 
               {/* Option 2: Call */}
               <a
-                href="tel:7000563768"
+                href="tel:8817441489"
                 className={styles.optionCard}
                 onClick={closeModal}
               >
@@ -199,12 +206,12 @@ const Pricing: React.FC = () => {
                 </div>
                 <h4>Direct Call</h4>
                 <p>Speak directly with our AI automation expert. Instant answers.</p>
-                <span className={styles.optionCta}>Call +91 7000563768 →</span>
+                <span className={styles.optionCta}>Call +91 8817441489 →</span>
               </a>
 
               {/* Option 3: WhatsApp */}
               <a
-                href="https://wa.me/917000563768"
+                href="https://wa.me/918817441489"
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.optionCard}

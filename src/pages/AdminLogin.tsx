@@ -40,11 +40,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   const [newPassword, setNewPassword] = useState('');
   const [newConfirm, setNewConfirm] = useState('');
 
-  // Check admin status on mount
-  useEffect(() => {
-    checkAdminStatus();
-  }, []);
-
   const checkAdminStatus = async () => {
     try {
       const res = await fetch('/api/admin/status');
@@ -61,6 +56,12 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
       setStep('setup');
     }
   };
+
+  // Check admin status on mount
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    checkAdminStatus();
+  }, []);
 
   const triggerShake = () => {
     setIsShaking(true);
@@ -109,8 +110,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
         sessionStorage.setItem('ace_admin_auth', 'true');
         onLogin();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Setup failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Setup failed.');
       triggerShake();
     } finally {
       setIsSubmitting(false);
@@ -140,8 +141,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
 
       sessionStorage.setItem('ace_admin_auth', 'true');
       onLogin();
-    } catch (err: any) {
-      setError(err.message || 'Login failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed.');
       triggerShake();
       setLoginPassword('');
     } finally {
@@ -172,8 +173,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
 
       setDevOtp(data._devOtp || '');
       setStep('forgot-otp');
-    } catch (err: any) {
-      setError(err.message || 'Verification failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Verification failed.');
       triggerShake();
     } finally {
       setIsSubmitting(false);
@@ -202,8 +203,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
       if (!res.ok) throw new Error(data.error);
 
       setStep('forgot-reset');
-    } catch (err: any) {
-      setError(err.message || 'OTP verification failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'OTP verification failed.');
       triggerShake();
     } finally {
       setIsSubmitting(false);
@@ -242,8 +243,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
         sessionStorage.setItem('ace_admin_auth', 'true');
         onLogin();
       }, 2000);
-    } catch (err: any) {
-      setError(err.message || 'Password reset failed.');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Password reset failed.');
       triggerShake();
     } finally {
       setIsSubmitting(false);

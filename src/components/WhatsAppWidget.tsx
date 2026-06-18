@@ -3,7 +3,7 @@ import styles from './WhatsAppWidget.module.css';
 
 const WhatsAppWidget: React.FC = () => {
   // Using the Ace Automation official WhatsApp number
-  const phoneNumber = '917000563768'; 
+  const phoneNumber = '918817441489'; 
   const message = encodeURIComponent("Hello Aace AI! I am interested in your automation services.");
 
   return (
