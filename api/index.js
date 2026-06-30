@@ -4,6 +4,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { google } from 'googleapis';
+import nodemailer from 'nodemailer';
+import { connectDB, Lead, Admin } from '../db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,369 +39,495 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Secure, unique bucket and key on kvdb.io for Ace CRM Leads
-const BUCKET_URL = 'https://kvdb.io/5BjKLgotf5YNQPbFqtySXH/leads';
-
-const generateMockLeads = () => {
-  return [
-    {
-      id: 'lead_1',
-      name: 'Rajesh Kumar',
-      company: 'RK Industries',
-      phone: '9876543210',
-      email: 'rajesh@rkindustries.com',
-      city: 'Mumbai',
-      service: 'AI Automation',
-      budget: '₹1L - ₹2L',
-      followupDate: '2026-06-15',
-      message: 'Interested in automating our production line reporting using custom AI solutions.',
-      source: 'Form',
-      status: 'Hot Lead',
-      notes: 'Very interested. Wants a demo next Tuesday.',
-      timestamp: new Date(Date.now() - 4 * 3600000).toISOString()
-    },
-    {
-      id: 'lead_2',
-      name: 'Amit Sharma',
-      company: 'Sharma Smart Homes',
-      phone: '9165699823',
-      email: 'amit@sharmash.in',
-      city: 'Delhi',
-      service: 'WhatsApp Automation',
-      budget: '₹50k - ₹1L',
-      followupDate: '2026-06-10',
-      message: 'Need a customer support chatbot for our e-commerce operations.',
-      source: 'Consultation',
-      status: 'Interested',
-      notes: 'Sent pricing catalog. Waiting for response.',
-      timestamp: new Date(Date.now() - 24 * 3600000).toISOString()
-    },
-    {
-      id: 'lead_3',
-      name: 'WhatsApp Lead (Jabalpur)',
-      company: 'N/A',
-      phone: 'N/A',
-      email: 'N/A',
-      city: 'Jabalpur',
-      service: 'N/A',
-      budget: '',
-      followupDate: '',
-      message: 'User clicked the WhatsApp chat link.',
-      source: 'WhatsApp',
-      status: 'Interested',
-      notes: 'Initiated conversation on WhatsApp. Inquiry on home automation.',
-      timestamp: new Date(Date.now() - 36 * 3600000).toISOString()
-    }
-  ];
-};
-
-const readLeads = async () => {
+// Mock Data Seeder
+const checkAndSeedMockData = async () => {
   try {
-    const response = await fetch(BUCKET_URL);
-    if (response.status === 404) {
-      const mock = generateMockLeads();
-      await writeLeads(mock);
-      return mock;
+    const count = await Lead.countDocuments();
+    if (count === 0) {
+      console.log('Seeding mock leads into MongoDB (Serverless)...');
+      const mockLeads = [
+        {
+          id: 'lead_1',
+          name: 'Rajesh Kumar',
+          company: 'RK Industries',
+          phone: '9876543210',
+          email: 'rajesh@rkindustries.com',
+          service: 'AI Automation',
+          message: 'Interested in automating our production line reporting using custom AI solutions.',
+          source: 'Form',
+          status: 'Hot Lead',
+          notes: 'Very interested. Wants a demo next Tuesday.',
+          timestamp: new Date(Date.now() - 4 * 3600000)
+        },
+        {
+          id: 'lead_2',
+          name: 'Amit Sharma',
+          company: 'Sharma Smart Homes',
+          phone: '9165699823',
+          email: 'amit@sharmash.in',
+          service: 'WhatsApp Automation',
+          message: 'Need a customer support chatbot for our e-commerce operations.',
+          source: 'Consultation',
+          status: 'Interested',
+          notes: 'Sent pricing catalog. Waiting for response.',
+          timestamp: new Date(Date.now() - 24 * 3600000)
+        },
+        {
+          id: 'lead_3',
+          name: 'WhatsApp Lead (Jabalpur)',
+          company: 'N/A',
+          phone: 'N/A',
+          email: 'N/A',
+          service: 'N/A',
+          message: 'User clicked the WhatsApp chat link.',
+          source: 'WhatsApp',
+          status: 'Interested',
+          notes: 'Initiated conversation on WhatsApp. Inquiry on home automation.',
+          timestamp: new Date(Date.now() - 36 * 3600000)
+        }
+      ];
+      await Lead.insertMany(mockLeads);
+      console.log('Mock leads seeded successfully.');
     }
-    const text = await response.text();
-    return JSON.parse(text);
   } catch (error) {
-    console.error('Error reading leads:', error);
-    return [];
+    console.error('Error seeding mock data:', error);
   }
 };
 
-const writeLeads = async (leads) => {
+// Database Connection Middleware for Serverless Env
+let seeded = false;
+app.use(async (req, res, next) => {
   try {
-    const response = await fetch(BUCKET_URL, {
-      method: 'POST',
-      body: JSON.stringify(leads),
-      headers: { 'Content-Type': 'application/json' }
-    });
-    return response.ok;
-  } catch (error) {
-    console.error('Error writing leads:', error);
-    return false;
+    await connectDB();
+    if (!seeded) {
+      seeded = true;
+      checkAndSeedMockData().catch(err => console.error(err));
+    }
+    next();
+  } catch (err) {
+    console.error('Database connection error in middleware:', err);
+    res.status(500).json({ error: 'Database connection failed.' });
   }
-};
+});
 
 // ============ ADMIN AUTH SYSTEM ============
 
-app.get('/api/admin/status', (req, res) => {
-  res.json({ 
-    exists: true, 
-    name: 'Admin',
-    maskedEmail: 'ad***@aaceautomation.com',
-    maskedPhone: '91****3768'
+let otpStore = { code: null, expiresAt: null, verified: false };
+
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+const sendOtpEmail = async (toEmail, otp) => {
+  const gmailUser = process.env.GMAIL_USER;
+  const gmailPass = process.env.GMAIL_APP_PASSWORD;
+
+  if (!gmailUser || gmailUser === 'your_gmail@gmail.com' || !gmailPass || gmailPass === 'xxxx xxxx xxxx xxxx') {
+    console.log(`\n📧 [DEV/PROD MODE] Email OTP for ${toEmail}: ${otp}\n`);
+    return { success: true, dev: true };
+  }
+
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: gmailUser, pass: gmailPass }
   });
-});
 
-app.post('/api/admin/setup', (req, res) => {
-  res.status(400).json({ error: 'Admin account already exists. Use login instead.' });
-});
+  await transporter.sendMail({
+    from: `"Ace Automation Admin" <${gmailUser}>`,
+    to: toEmail,
+    subject: '🔐 Your Admin Password Reset OTP - Ace Automation',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #0f172a; color: #e2e8f0; padding: 32px; border-radius: 16px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <h2 style="color: #818cf8; margin: 0;">🛡️ Ace Automation</h2>
+          <p style="color: #94a3b8; font-size: 14px;">Admin Password Reset</p>
+        </div>
+        <p style="font-size: 15px;">Aapne apna admin password reset karne ki request ki hai. Neeche diya gaya OTP use karein:</p>
+        <div style="background: #1e293b; border: 2px solid #6366f1; border-radius: 12px; padding: 24px; text-align: center; margin: 24px 0;">
+          <p style="font-size: 36px; font-weight: 800; letter-spacing: 0.5em; color: #a5b4fc; margin: 0;">${otp}</p>
+          <p style="font-size: 13px; color: #64748b; margin: 8px 0 0 0;">⏰ 5 minutes mein expire ho jayega</p>
+        </div>
+        <p style="font-size: 13px; color: #64748b;">Agar aapne yeh request nahi ki hai to is email ko ignore karein. Kisi ke saath yeh OTP share na karein.</p>
+        <hr style="border-color: #1e293b; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #475569; text-align: center;">Ace Automation CRM System</p>
+      </div>
+    `
+  });
 
-app.post('/api/admin/login', (req, res) => {
-  const { password } = req.body;
-  const validPassword = process.env.ADMIN_PASSWORD || 'aceadmin123';
-  if (!password) {
-    return res.status(400).json({ error: 'Password is required.' });
+  return { success: true, dev: false };
+};
+
+const sendOtpSms = async (phone, otp) => {
+  const apiKey = process.env.FAST2SMS_API_KEY;
+
+  if (!apiKey || apiKey === 'your_fast2sms_api_key_here') {
+    console.log(`\n📱 [DEV/PROD MODE] SMS OTP for ${phone}: ${otp}\n`);
+    return { success: true, dev: true };
   }
-  if (password === validPassword) {
-    res.json({ success: true, name: 'Admin' });
-  } else {
-    res.status(401).json({ error: 'Invalid password. Access denied.' });
+
+  const cleanPhone = phone.replace(/^(\+91|91|0)/, '').trim();
+
+  const response = await fetch('https://www.fast2sms.com/dev/bulkV2', {
+    method: 'POST',
+    headers: {
+      'authorization': apiKey,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      route: 'otp',
+      variables_values: otp,
+      flash: 0,
+      numbers: cleanPhone
+    })
+  });
+
+  const data = await response.json();
+  if (!data.return) {
+    throw new Error(data.message || 'SMS sending failed');
+  }
+  return { success: true, dev: false };
+};
+
+app.get('/api/admin/status', async (req, res) => {
+  try {
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.json({ exists: false });
+    }
+    return res.json({ 
+      exists: true, 
+      name: admin.name,
+      maskedEmail: admin.email ? admin.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : null,
+      maskedPhone: admin.phone ? admin.phone.replace(/(.{2})(.*)(.{2})/, '$1****$3') : null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-app.post('/api/admin/verify-identity', (req, res) => {
-  res.status(400).json({ error: 'Password reset not supported in serverless mode. Please contact developer.' });
+app.post('/api/admin/setup', async (req, res) => {
+  try {
+    const existingAdmin = await Admin.findOne();
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Admin account already exists. Use login instead.' });
+    }
+
+    const { name, email, phone, password } = req.body;
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ error: 'Name, email, phone, and password are all required.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
+
+    await Admin.create({
+      name,
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
+      password,
+      createdAt: new Date()
+    });
+
+    res.status(201).json({ success: true, message: 'Admin account created successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create admin account: ' + err.message });
+  }
+});
+
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ error: 'No admin account found. Please set up first.' });
+    }
+
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required.' });
+    }
+
+    if (password === admin.password) {
+      res.json({ success: true, name: admin.name });
+    } else {
+      res.status(401).json({ error: 'Invalid password. Access denied.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/admin/verify-identity', async (req, res) => {
+  try {
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ error: 'No admin account found.' });
+    }
+
+    const { method, value } = req.body;
+    if (!method || !value) {
+      return res.status(400).json({ error: 'Verification method and value are required.' });
+    }
+
+    let matched = false;
+    if (method === 'email' && value.toLowerCase().trim() === admin.email) {
+      matched = true;
+    } else if (method === 'phone' && value.trim() === admin.phone) {
+      matched = true;
+    }
+
+    if (!matched) {
+      return res.status(401).json({ error: 'Provided details do not match our records.' });
+    }
+
+    const otp = generateOTP();
+    otpStore = { code: otp, expiresAt: Date.now() + 5 * 60 * 1000, verified: false };
+
+    try {
+      let sendResult;
+      if (method === 'email') {
+        sendResult = await sendOtpEmail(admin.email, otp);
+      } else {
+        sendResult = await sendOtpSms(admin.phone, otp);
+      }
+
+      const isDev = sendResult.dev;
+      const deliveryInfo = method === 'email'
+        ? `OTP sent to your email: ${admin.email.replace(/(.{2})(.*)(@.*)/, '$1***$3')}`
+        : `OTP sent to your phone: ${admin.phone.replace(/^(\d{2})(\d+)(\d{2})$/, '$1****$3')}`;
+
+      return res.json({
+        success: true,
+        message: deliveryInfo,
+        ...(isDev && { _devOtp: otp })
+      });
+    } catch (err) {
+      console.error('OTP delivery error:', err);
+      console.log(`\n🔐 FALLBACK OTP: ${otp}\n`);
+      return res.status(500).json({ 
+        error: `OTP delivery failed: ${err.message}. Check server console for OTP.`,
+        _devOtp: otp
+      });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/admin/verify-otp', (req, res) => {
-  res.status(400).json({ error: 'Not supported.' });
+  const { otp } = req.body;
+  if (!otp) {
+    return res.status(400).json({ error: 'OTP is required.' });
+  }
+
+  if (!otpStore.code || Date.now() > otpStore.expiresAt) {
+    otpStore = { code: null, expiresAt: null, verified: false };
+    return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+  }
+
+  if (otp !== otpStore.code) {
+    return res.status(401).json({ error: 'Invalid OTP. Please try again.' });
+  }
+
+  otpStore.verified = true;
+  res.json({ success: true, message: 'OTP verified successfully.' });
 });
 
-app.post('/api/admin/reset-password', (req, res) => {
-  res.status(400).json({ error: 'Not supported.' });
-});
-
-// GET: Retrieve all leads
-app.get('/api/leads', async (req, res) => {
-  const leads = await readLeads();
-  leads.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  res.json(leads);
-});
-
-// ============ GOOGLE SHEETS HELPER ============
-const appendToGoogleSheet = async (rowData) => {
+app.post('/api/admin/reset-password', async (req, res) => {
   try {
-    const sheetId = process.env.GOOGLE_SHEET_ID;
-    const keyJson = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-
-    if (!sheetId || sheetId === 'your_google_sheet_id_here' || !keyJson || keyJson === 'your_service_account_json_here') {
-      console.log('📊 [DEV MODE] Google Sheets not configured. Row would be:', rowData);
-      return { success: false, dev: true };
+    if (!otpStore.verified) {
+      return res.status(403).json({ error: 'Please verify OTP first.' });
     }
 
-    let credentials;
-    try {
-      credentials = JSON.parse(keyJson);
-    } catch {
-      console.error('Invalid GOOGLE_SERVICE_ACCOUNT_KEY JSON');
-      return { success: false, error: 'Invalid credentials JSON' };
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ error: 'No admin account found.' });
     }
 
-    const auth = new google.auth.GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    }
 
-    const sheets = google.sheets({ version: 'v4', auth });
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range: 'Sheet1!A:J',
-      valueInputOption: 'USER_ENTERED',
-      requestBody: {
-        values: [rowData],
-      },
-    });
+    admin.password = newPassword;
+    await admin.save();
 
-    console.log('✅ Google Sheets: Row appended successfully');
-    return { success: true };
+    otpStore = { code: null, expiresAt: null, verified: false };
+    res.json({ success: true, message: 'Password reset successfully.' });
   } catch (err) {
-    console.error('❌ Google Sheets error:', err.message);
-    return { success: false, error: err.message };
+    res.status(500).json({ error: 'Failed to reset password: ' + err.message });
   }
-};
+});
 
-// POST: Add a new lead
+// ============ LEADS SYSTEM ============
+
+app.get('/api/leads', async (req, res) => {
+  try {
+    const leads = await Lead.find().sort({ timestamp: -1 });
+    res.json(leads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/leads', async (req, res) => {
-  const { name, company, phone, email, city, service, budget, followupDate, message, source, status, notes } = req.body;
+  try {
+    const { name, company, phone, email, city, service, budget, followupDate, message, source, status, notes } = req.body;
 
-  if (!name || !source) {
-    return res.status(400).json({ error: 'Name and source are required.' });
-  }
+    if (!name || !source) {
+      return res.status(400).json({ error: 'Name and source are required.' });
+    }
 
-  const leads = await readLeads();
-  const newLead = {
-    id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    name,
-    company: company || 'N/A',
-    phone: phone || 'N/A',
-    email: email || 'N/A',
-    city: city || '',
-    service: service || 'N/A',
-    budget: budget || '',
-    followupDate: followupDate || '',
-    message: message || '',
-    source,
-    status: status || 'New',
-    notes: notes || '',
-    timestamp: new Date().toISOString()
-  };
+    const newLead = await Lead.create({
+      id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      company: company || 'N/A',
+      phone: phone || 'N/A',
+      email: email || 'N/A',
+      city: city || '',
+      service: service || 'N/A',
+      budget: budget || '',
+      followupDate: followupDate || '',
+      message: message || '',
+      source,
+      status: status || 'New',
+      notes: notes || '',
+      timestamp: new Date()
+    });
 
-  leads.push(newLead);
-  
-  // Also push to Google Sheets
-  const sheetRow = [
-    new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-    name,
-    phone,
-    company || 'N/A',
-    service,
-    budget || 'N/A',
-    'No', // meetingBooked
-    newLead.status,
-    message || 'Form Submission',
-    newLead.id,
-  ];
-  await appendToGoogleSheet(sheetRow);
+    const sheetRow = [
+      new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      name,
+      phone,
+      company || 'N/A',
+      service,
+      budget || 'N/A',
+      'No',
+      newLead.status,
+      message || 'Form Submission',
+      newLead.id,
+    ];
+    await appendToGoogleSheet(sheetRow);
 
-  if (await writeLeads(leads)) {
     res.status(201).json(newLead);
-  } else {
-    res.status(500).json({ error: 'Failed to write lead to database.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to write lead to database: ' + err.message });
   }
 });
 
-// PATCH: Update lead fields dynamically
 app.patch('/api/leads/:id', async (req, res) => {
-  const { id } = req.params;
-  const updateData = req.body;
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
 
-  const leads = await readLeads();
-  const leadIndex = leads.findIndex((l) => l.id === id);
+    const allowedFields = ['name', 'company', 'phone', 'email', 'city', 'service', 'budget', 'followupDate', 'message', 'source', 'status', 'notes'];
+    const filteredUpdate = {};
+    allowedFields.forEach(field => {
+      if (updateData[field] !== undefined) {
+        filteredUpdate[field] = updateData[field];
+      }
+    });
 
-  if (leadIndex === -1) {
-    return res.status(404).json({ error: 'Lead not found.' });
-  }
-
-  const allowedFields = ['name', 'company', 'phone', 'email', 'city', 'service', 'budget', 'followupDate', 'message', 'source', 'status', 'notes'];
-  allowedFields.forEach(field => {
-    if (updateData[field] !== undefined) {
-      leads[leadIndex][field] = updateData[field];
+    const updatedLead = await Lead.findOneAndUpdate({ id }, filteredUpdate, { new: true });
+    if (!updatedLead) {
+      return res.status(404).json({ error: 'Lead not found.' });
     }
-  });
 
-  if (await writeLeads(leads)) {
-    res.json(leads[leadIndex]);
-  } else {
-    res.status(500).json({ error: 'Failed to update lead.' });
+    res.json(updatedLead);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update lead: ' + err.message });
   }
 });
 
-// DELETE: Remove a lead
 app.delete('/api/leads/:id', async (req, res) => {
-  const { id } = req.params;
-  const leads = await readLeads();
-  const filteredLeads = leads.filter((l) => l.id !== id);
+  try {
+    const { id } = req.params;
+    const result = await Lead.deleteOne({ id });
 
-  if (leads.length === filteredLeads.length) {
-    return res.status(404).json({ error: 'Lead not found.' });
-  }
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Lead not found.' });
+    }
 
-  if (await writeLeads(filteredLeads)) {
     res.json({ message: 'Lead deleted successfully.', id });
-  } else {
-    res.status(500).json({ error: 'Failed to delete lead.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete lead: ' + err.message });
   }
 });
 
-// POST: Bulk delete leads
 app.post('/api/leads/bulk-delete', async (req, res) => {
-  const { ids } = req.body;
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'Invalid or empty ids array.' });
-  }
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Invalid or empty ids array.' });
+    }
 
-  const leads = await readLeads();
-  const initialCount = leads.length;
-  const filteredLeads = leads.filter(l => !ids.includes(l.id));
-
-  if (initialCount === filteredLeads.length) {
-    return res.status(404).json({ error: 'No leads found to delete.' });
-  }
-
-  if (await writeLeads(filteredLeads)) {
-    res.json({ message: `${initialCount - filteredLeads.length} leads deleted successfully.` });
-  } else {
-    res.status(500).json({ error: 'Failed to perform bulk delete.' });
+    const result = await Lead.deleteMany({ id: { $in: ids } });
+    res.json({ message: `${result.deletedCount} leads deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to perform bulk delete: ' + err.message });
   }
 });
 
-// POST: Bulk update status of leads
 app.post('/api/leads/bulk-status', async (req, res) => {
-  const { ids, status } = req.body;
-  if (!Array.isArray(ids) || ids.length === 0 || !status) {
-    return res.status(400).json({ error: 'Invalid payload: ids and status are required.' });
-  }
-
-  const leads = await readLeads();
-  let updatedCount = 0;
-
-  leads.forEach(lead => {
-    if (ids.includes(lead.id)) {
-      lead.status = status;
-      updatedCount++;
+  try {
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0 || !status) {
+      return res.status(400).json({ error: 'Invalid payload: ids and status are required.' });
     }
-  });
 
-  if (updatedCount === 0) {
-    return res.status(404).json({ error: 'No matching leads found to update.' });
-  }
-
-  if (await writeLeads(leads)) {
-    res.json({ message: `${updatedCount} leads updated to status "${status}" successfully.` });
-  } else {
-    res.status(500).json({ error: 'Failed to update leads status.' });
+    const result = await Lead.updateMany({ id: { $in: ids } }, { status });
+    res.json({ message: `${result.modifiedCount} leads updated to status "${status}" successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update leads status: ' + err.message });
   }
 });
 
-// GET: Export leads in Excel-compatible CSV format
 app.get('/api/leads/export', async (req, res) => {
-  const leads = await readLeads();
-  leads.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  try {
+    const leads = await Lead.find().sort({ timestamp: -1 });
 
-  const headers = [
-    'Lead ID', 'Name', 'Company', 'Phone', 'Email', 'City', 
-    'Service Interested', 'Budget', 'Follow Up Date', 'Message', 
-    'Source', 'Status', 'Notes', 'Date & Time'
-  ];
-  
-  const escapeCSV = (val) => {
-    if (val === undefined || val === null) return '';
-    let str = String(val).replace(/"/g, '""');
-    if (str.includes(',') || str.includes('\n') || str.includes('"')) {
-      str = `"${str}"`;
-    }
-    return str;
-  };
+    const headers = [
+      'Lead ID', 'Name', 'Company', 'Phone', 'Email', 'City', 
+      'Service Interested', 'Budget', 'Follow Up Date', 'Message', 
+      'Source', 'Status', 'Notes', 'Date & Time'
+    ];
+    
+    const escapeCSV = (val) => {
+      if (val === undefined || val === null) return '';
+      let str = String(val).replace(/"/g, '""');
+      if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+        str = `"${str}"`;
+      }
+      return str;
+    };
 
-  const rows = leads.map(lead => [
-    lead.id,
-    lead.name,
-    lead.company,
-    lead.phone,
-    lead.email,
-    lead.city || '',
-    lead.service,
-    lead.budget || '',
-    lead.followupDate || '',
-    lead.message,
-    lead.source,
-    lead.status,
-    lead.notes,
-    new Date(lead.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-  ]);
+    const rows = leads.map(lead => [
+      lead.id,
+      lead.name,
+      lead.company,
+      lead.phone,
+      lead.email,
+      lead.city || '',
+      lead.service,
+      lead.budget || '',
+      lead.followupDate || '',
+      lead.message,
+      lead.source,
+      lead.status,
+      lead.notes,
+      new Date(lead.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+    ]);
 
-  const csvContent = '\uFEFF' + [
-    headers.map(escapeCSV).join(','),
-    ...rows.map(row => row.map(escapeCSV).join(','))
-  ].join('\r\n');
+    const csvContent = '\uFEFF' + [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
+    ].join('\r\n');
 
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename=Ace_Automation_Leads_${new Date().toISOString().split('T')[0]}.csv`);
-  res.status(200).send(csvContent);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=Ace_Automation_Leads_${new Date().toISOString().split('T')[0]}.csv`);
+    res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const systemPrompt = `You are "Aace AI" (or Aace), a highly warm, friendly, professional, and human-like AI sales and customer support assistant for "Ace Automation".
@@ -504,9 +632,7 @@ app.post('/api/chat', async (req, res) => {
     if (functionCallPart) {
       const { name: funcName, args } = functionCallPart.functionCall;
       if (funcName === "book_consultation") {
-        // Create new lead in database
-        const leads = await readLeads();
-        const newLead = {
+        const newLead = await Lead.create({
           id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: args.name,
           company: args.company || 'N/A',
@@ -520,11 +646,8 @@ app.post('/api/chat', async (req, res) => {
           source: 'Chatbot',
           status: args.is_hot_lead ? 'Hot Lead' : 'New',
           notes: 'Auto-created by Aace AI Chatbot during conversation.',
-          timestamp: new Date().toISOString()
-        };
-
-        leads.push(newLead);
-        await writeLeads(leads);
+          timestamp: new Date()
+        });
 
         // Feed function response back to Gemini
         contents.push(candidate.content); // Model functionCall part
@@ -679,8 +802,7 @@ app.post('/api/whatsapp-webhook', async (req, res) => {
           if (functionCallPart) {
             const { name: funcName, args } = functionCallPart.functionCall;
             if (funcName === "book_consultation") {
-              const leads = await readLeads();
-              const newLead = {
+              const newLead = await Lead.create({
                 id: `wa_${Date.now()}`,
                 name: args.name,
                 company: args.company || 'N/A',
@@ -694,10 +816,8 @@ app.post('/api/whatsapp-webhook', async (req, res) => {
                 source: 'WhatsApp',
                 status: args.is_hot_lead ? 'Hot Lead' : 'New',
                 notes: 'Auto-created by WhatsApp AI.',
-                timestamp: new Date().toISOString()
-              };
-              leads.push(newLead);
-              await writeLeads(leads);
+                timestamp: new Date()
+              });
 
               contents.push(candidate.content);
               contents.push({
@@ -762,9 +882,8 @@ app.post('/api/vapi-webhook', async (req, res) => {
       `Summary: ${summary.slice(0, 300)}`,
     ].join(' | ');
 
-    // ── Save to CRM (KVDB leads) ──
-    const leads = await readLeads();
-    const newLead = {
+    // ── Save to CRM (MongoDB) ──
+    const newLead = await Lead.create({
       id: `vapi_${callId}`,
       name,
       company: business,
@@ -778,10 +897,8 @@ app.post('/api/vapi-webhook', async (req, res) => {
       source: 'AI Voice Agent',
       status: meetingBooked ? 'Hot Lead' : 'New',
       notes,
-      timestamp: new Date().toISOString(),
-    };
-    leads.push(newLead);
-    await writeLeads(leads);
+      timestamp: new Date()
+    });
     console.log('✅ CRM updated — Lead:', name, '|', phone);
 
     // ── Save to Google Sheets ──

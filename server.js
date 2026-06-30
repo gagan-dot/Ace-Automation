@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import nodemailer from 'nodemailer';
 import { google } from 'googleapis';
+import { connectDB, Lead, Admin } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -37,143 +38,91 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const DATA_DIR = path.join(__dirname, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'leads.json');
-const ADMIN_FILE = path.join(DATA_DIR, 'admin.json');
-
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
-// Helper to read leads
-const readLeads = () => {
+// Mock Data Generator for MongoDB
+const checkAndSeedMockData = async () => {
   try {
-    if (!fs.existsSync(DATA_FILE)) {
-      return [];
+    const count = await Lead.countDocuments();
+    if (count === 0) {
+      console.log('Seeding mock leads into MongoDB...');
+      const mockLeads = [
+        {
+          id: 'lead_1',
+          name: 'Rajesh Kumar',
+          company: 'RK Industries',
+          phone: '9876543210',
+          email: 'rajesh@rkindustries.com',
+          service: 'AI Automation',
+          message: 'Interested in automating our production line reporting using custom AI solutions.',
+          source: 'Form',
+          status: 'Hot Lead',
+          notes: 'Very interested. Wants a demo next Tuesday.',
+          timestamp: new Date(Date.now() - 4 * 3600000) // 4 hours ago
+        },
+        {
+          id: 'lead_2',
+          name: 'Amit Sharma',
+          company: 'Sharma Smart Homes',
+          phone: '9165699823',
+          email: 'amit@sharmash.in',
+          service: 'WhatsApp Automation',
+          message: 'Need a customer support chatbot for our e-commerce operations.',
+          source: 'Consultation',
+          status: 'Interested',
+          notes: 'Sent pricing catalog. Waiting for response.',
+          timestamp: new Date(Date.now() - 24 * 3600000) // 1 day ago
+        },
+        {
+          id: 'lead_3',
+          name: 'WhatsApp Lead (Jabalpur)',
+          company: 'N/A',
+          phone: 'N/A',
+          email: 'N/A',
+          service: 'N/A',
+          message: 'User clicked the WhatsApp chat link.',
+          source: 'WhatsApp',
+          status: 'Interested',
+          notes: 'Initiated conversation on WhatsApp. Inquiry on home automation.',
+          timestamp: new Date(Date.now() - 36 * 3600000) // 1.5 days ago
+        },
+        {
+          id: 'lead_4',
+          name: 'Priya Patel',
+          company: 'Priya Textiles',
+          phone: '7000563768',
+          email: 'info@priyatex.com',
+          service: 'Website Development',
+          message: 'Looking to revamp our outdated brochure website to a modern custom web app.',
+          source: 'Form',
+          status: 'Not Interested',
+          notes: 'Budget constraints. Prefers standard templates for now.',
+          timestamp: new Date(Date.now() - 3 * 86400000) // 3 days ago
+        },
+        {
+          id: 'lead_5',
+          name: 'Call Lead (Guest)',
+          company: 'N/A',
+          phone: 'N/A',
+          email: 'N/A',
+          service: 'N/A',
+          message: 'User clicked the Call link.',
+          source: 'Call',
+          status: 'New',
+          notes: 'No info. Callback scheduled.',
+          timestamp: new Date(Date.now() - 5 * 86400000) // 5 days ago
+        }
+      ];
+      await Lead.insertMany(mockLeads);
+      console.log('Mock leads seeded successfully.');
     }
-    const data = fs.readFileSync(DATA_FILE, 'utf8');
-    return JSON.parse(data);
   } catch (error) {
-    console.error('Error reading leads file:', error);
-    return [];
+    console.error('Error seeding mock data:', error);
   }
 };
 
-// Helper to write leads
-const writeLeads = (leads) => {
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(leads, null, 2), 'utf8');
-    return true;
-  } catch (error) {
-    console.error('Error writing leads file:', error);
-    return false;
-  }
-};
-
-// Mock Data Generator
-const generateMockLeads = () => {
-  const mockLeads = [
-    {
-      id: 'lead_1',
-      name: 'Rajesh Kumar',
-      company: 'RK Industries',
-      phone: '9876543210',
-      email: 'rajesh@rkindustries.com',
-      service: 'AI Automation',
-      message: 'Interested in automating our production line reporting using custom AI solutions.',
-      source: 'Form',
-      status: 'Hot Lead',
-      notes: 'Very interested. Wants a demo next Tuesday.',
-      timestamp: new Date(Date.now() - 4 * 3600000).toISOString() // 4 hours ago
-    },
-    {
-      id: 'lead_2',
-      name: 'Amit Sharma',
-      company: 'Sharma Smart Homes',
-      phone: '9165699823',
-      email: 'amit@sharmash.in',
-      service: 'WhatsApp Automation',
-      message: 'Need a customer support chatbot for our e-commerce operations.',
-      source: 'Consultation',
-      status: 'Interested',
-      notes: 'Sent pricing catalog. Waiting for response.',
-      timestamp: new Date(Date.now() - 24 * 3600000).toISOString() // 1 day ago
-    },
-    {
-      id: 'lead_3',
-      name: 'WhatsApp Lead (Jabalpur)',
-      company: 'N/A',
-      phone: 'N/A',
-      email: 'N/A',
-      service: 'N/A',
-      message: 'User clicked the WhatsApp chat link.',
-      source: 'WhatsApp',
-      status: 'Interested',
-      notes: 'Initiated conversation on WhatsApp. Inquiry on home automation.',
-      timestamp: new Date(Date.now() - 36 * 3600000).toISOString() // 1.5 days ago
-    },
-    {
-      id: 'lead_4',
-      name: 'Priya Patel',
-      company: 'Priya Textiles',
-      phone: '7000563768',
-      email: 'info@priyatex.com',
-      service: 'Website Development',
-      message: 'Looking to revamp our outdated brochure website to a modern custom web app.',
-      source: 'Form',
-      status: 'Not Interested',
-      notes: 'Budget constraints. Prefers standard templates for now.',
-      timestamp: new Date(Date.now() - 3 * 86400000).toISOString() // 3 days ago
-    },
-    {
-      id: 'lead_5',
-      name: 'Call Lead (Guest)',
-      company: 'N/A',
-      phone: 'N/A',
-      email: 'N/A',
-      service: 'N/A',
-      message: 'User clicked the Call link.',
-      source: 'Call',
-      status: 'New',
-      notes: 'No info. Callback scheduled.',
-      timestamp: new Date(Date.now() - 5 * 86400000).toISOString() // 5 days ago
-    }
-  ];
-  writeLeads(mockLeads);
-};
-
-// Check and generate mock data if leads file is empty
-if (readLeads().length === 0) {
-  generateMockLeads();
-}
 
 // --- REST API ENDPOINTS ---
 
 // ============ ADMIN AUTH SYSTEM ============
-
-// Helper to read admin data
-const readAdmin = () => {
-  try {
-    if (!fs.existsSync(ADMIN_FILE)) return null;
-    const data = fs.readFileSync(ADMIN_FILE, 'utf8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading admin file:', error);
-    return null;
-  }
-};
-
-// Helper to write admin data
-const writeAdmin = (adminData) => {
-  try {
-    fs.writeFileSync(ADMIN_FILE, JSON.stringify(adminData, null, 2), 'utf8');
-    return true;
-  } catch (error) {
-    console.error('Error writing admin file:', error);
-    return false;
-  }
-};
 
 // In-memory OTP store
 let otpStore = { code: null, expiresAt: null, verified: false };
@@ -257,122 +206,133 @@ const sendOtpSms = async (phone, otp) => {
 };
 
 // GET: Check if admin account exists (first-time vs returning)
-app.get('/api/admin/status', (req, res) => {
-  const admin = readAdmin();
-  if (!admin) {
-    return res.json({ exists: false });
+app.get('/api/admin/status', async (req, res) => {
+  try {
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.json({ exists: false });
+    }
+    return res.json({ 
+      exists: true, 
+      name: admin.name,
+      maskedEmail: admin.email ? admin.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : null,
+      maskedPhone: admin.phone ? admin.phone.replace(/(.{2})(.*)(.{2})/, '$1****$3') : null
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-  return res.json({ 
-    exists: true, 
-    name: admin.name,
-    maskedEmail: admin.email ? admin.email.replace(/(.{2})(.*)(@.*)/, '$1***$3') : null,
-    maskedPhone: admin.phone ? admin.phone.replace(/(.{2})(.*)(.{2})/, '$1****$3') : null
-  });
 });
 
 // POST: First-time admin setup
-app.post('/api/admin/setup', (req, res) => {
-  const existingAdmin = readAdmin();
-  if (existingAdmin) {
-    return res.status(400).json({ error: 'Admin account already exists. Use login instead.' });
-  }
+app.post('/api/admin/setup', async (req, res) => {
+  try {
+    const existingAdmin = await Admin.findOne();
+    if (existingAdmin) {
+      return res.status(400).json({ error: 'Admin account already exists. Use login instead.' });
+    }
 
-  const { name, email, phone, password } = req.body;
-  if (!name || !email || !phone || !password) {
-    return res.status(400).json({ error: 'Name, email, phone, and password are all required.' });
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-  }
+    const { name, email, phone, password } = req.body;
+    if (!name || !email || !phone || !password) {
+      return res.status(400).json({ error: 'Name, email, phone, and password are all required.' });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters.' });
+    }
 
-  const adminData = {
-    name,
-    email: email.toLowerCase().trim(),
-    phone: phone.trim(),
-    password,
-    createdAt: new Date().toISOString()
-  };
+    await Admin.create({
+      name,
+      email: email.toLowerCase().trim(),
+      phone: phone.trim(),
+      password,
+      createdAt: new Date()
+    });
 
-  if (writeAdmin(adminData)) {
     res.status(201).json({ success: true, message: 'Admin account created successfully.' });
-  } else {
-    res.status(500).json({ error: 'Failed to create admin account.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to create admin account: ' + err.message });
   }
 });
 
 // POST: Admin login
-app.post('/api/admin/login', (req, res) => {
-  const admin = readAdmin();
-  if (!admin) {
-    return res.status(404).json({ error: 'No admin account found. Please set up first.' });
-  }
+app.post('/api/admin/login', async (req, res) => {
+  try {
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ error: 'No admin account found. Please set up first.' });
+    }
 
-  const { password } = req.body;
-  if (!password) {
-    return res.status(400).json({ error: 'Password is required.' });
-  }
+    const { password } = req.body;
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required.' });
+    }
 
-  if (password === admin.password) {
-    res.json({ success: true, name: admin.name });
-  } else {
-    res.status(401).json({ error: 'Invalid password. Access denied.' });
+    if (password === admin.password) {
+      res.json({ success: true, name: admin.name });
+    } else {
+      res.status(401).json({ error: 'Invalid password. Access denied.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
 // POST: Verify identity for forgot password (email or phone)
 app.post('/api/admin/verify-identity', async (req, res) => {
-  const admin = readAdmin();
-  if (!admin) {
-    return res.status(404).json({ error: 'No admin account found.' });
-  }
-
-  const { method, value } = req.body;
-  if (!method || !value) {
-    return res.status(400).json({ error: 'Verification method and value are required.' });
-  }
-
-  let matched = false;
-  if (method === 'email' && value.toLowerCase().trim() === admin.email) {
-    matched = true;
-  } else if (method === 'phone' && value.trim() === admin.phone) {
-    matched = true;
-  }
-
-  if (!matched) {
-    return res.status(401).json({ error: 'Provided details do not match our records.' });
-  }
-
-  // Generate OTP
-  const otp = generateOTP();
-  otpStore = { code: otp, expiresAt: Date.now() + 5 * 60 * 1000, verified: false };
-
   try {
-    let sendResult;
-    if (method === 'email') {
-      sendResult = await sendOtpEmail(admin.email, otp);
-    } else {
-      sendResult = await sendOtpSms(admin.phone, otp);
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ error: 'No admin account found.' });
     }
 
-    const isDev = sendResult.dev;
-    const deliveryInfo = method === 'email'
-      ? `OTP sent to your email: ${admin.email.replace(/(.{2})(.*)(@.*)/, '$1***$3')}`
-      : `OTP sent to your phone: ${admin.phone.replace(/^(\d{2})(\d+)(\d{2})$/, '$1****$3')}`;
+    const { method, value } = req.body;
+    if (!method || !value) {
+      return res.status(400).json({ error: 'Verification method and value are required.' });
+    }
 
-    return res.json({
-      success: true,
-      message: deliveryInfo,
-      // Only expose OTP in dev mode (when credentials not set)
-      ...(isDev && { _devOtp: otp })
-    });
+    let matched = false;
+    if (method === 'email' && value.toLowerCase().trim() === admin.email) {
+      matched = true;
+    } else if (method === 'phone' && value.trim() === admin.phone) {
+      matched = true;
+    }
+
+    if (!matched) {
+      return res.status(401).json({ error: 'Provided details do not match our records.' });
+    }
+
+    // Generate OTP
+    const otp = generateOTP();
+    otpStore = { code: otp, expiresAt: Date.now() + 5 * 60 * 1000, verified: false };
+
+    try {
+      let sendResult;
+      if (method === 'email') {
+        sendResult = await sendOtpEmail(admin.email, otp);
+      } else {
+        sendResult = await sendOtpSms(admin.phone, otp);
+      }
+
+      const isDev = sendResult.dev;
+      const deliveryInfo = method === 'email'
+        ? `OTP sent to your email: ${admin.email.replace(/(.{2})(.*)(@.*)/, '$1***$3')}`
+        : `OTP sent to your phone: ${admin.phone.replace(/^(\d{2})(\d+)(\d{2})$/, '$1****$3')}`;
+
+      return res.json({
+        success: true,
+        message: deliveryInfo,
+        // Only expose OTP in dev mode (when credentials not set)
+        ...(isDev && { _devOtp: otp })
+      });
+    } catch (err) {
+      console.error('OTP delivery error:', err);
+      console.log(`\n🔐 FALLBACK OTP: ${otp}\n`);
+      return res.status(500).json({ 
+        error: `OTP delivery failed: ${err.message}. Check server console for OTP.`,
+        _devOtp: otp
+      });
+    }
   } catch (err) {
-    console.error('OTP delivery error:', err);
-    // Still return the OTP in console for fallback
-    console.log(`\n🔐 FALLBACK OTP: ${otp}\n`);
-    return res.status(500).json({ 
-      error: `OTP delivery failed: ${err.message}. Check server console for OTP.`,
-      _devOtp: otp
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -397,217 +357,195 @@ app.post('/api/admin/verify-otp', (req, res) => {
 });
 
 // POST: Reset password (after OTP verification)
-app.post('/api/admin/reset-password', (req, res) => {
-  if (!otpStore.verified) {
-    return res.status(403).json({ error: 'Please verify OTP first.' });
-  }
+app.post('/api/admin/reset-password', async (req, res) => {
+  try {
+    if (!otpStore.verified) {
+      return res.status(403).json({ error: 'Please verify OTP first.' });
+    }
 
-  const admin = readAdmin();
-  if (!admin) {
-    return res.status(404).json({ error: 'No admin account found.' });
-  }
+    const admin = await Admin.findOne();
+    if (!admin) {
+      return res.status(404).json({ error: 'No admin account found.' });
+    }
 
-  const { newPassword } = req.body;
-  if (!newPassword || newPassword.length < 6) {
-    return res.status(400).json({ error: 'New password must be at least 6 characters.' });
-  }
+    const { newPassword } = req.body;
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+    }
 
-  admin.password = newPassword;
-  if (writeAdmin(admin)) {
+    admin.password = newPassword;
+    await admin.save();
+
     otpStore = { code: null, expiresAt: null, verified: false };
     res.json({ success: true, message: 'Password reset successfully.' });
-  } else {
-    res.status(500).json({ error: 'Failed to reset password.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to reset password: ' + err.message });
   }
 });
 
 // ============ LEADS SYSTEM ============
 
 // GET: Retrieve all leads
-app.get('/api/leads', (req, res) => {
-  const leads = readLeads();
-  // Sort by timestamp descending
-  leads.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  res.json(leads);
+app.get('/api/leads', async (req, res) => {
+  try {
+    const leads = await Lead.find().sort({ timestamp: -1 });
+    res.json(leads);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST: Add a new lead (from form, WhatsApp link, Call link, or manual entry)
-app.post('/api/leads', (req, res) => {
-  const { name, company, phone, email, city, service, budget, followupDate, message, source, status, notes } = req.body;
+app.post('/api/leads', async (req, res) => {
+  try {
+    const { name, company, phone, email, city, service, budget, followupDate, message, source, status, notes } = req.body;
 
-  if (!name || !source) {
-    return res.status(400).json({ error: 'Name and source are required.' });
-  }
+    if (!name || !source) {
+      return res.status(400).json({ error: 'Name and source are required.' });
+    }
 
-  const leads = readLeads();
-  const newLead = {
-    id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    name,
-    company: company || 'N/A',
-    phone: phone || 'N/A',
-    email: email || 'N/A',
-    city: city || '',
-    service: service || 'N/A',
-    budget: budget || '',
-    followupDate: followupDate || '',
-    message: message || '',
-    source,
-    status: status || 'New',
-    notes: notes || '',
-    timestamp: new Date().toISOString()
-  };
+    const newLead = await Lead.create({
+      id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name,
+      company: company || 'N/A',
+      phone: phone || 'N/A',
+      email: email || 'N/A',
+      city: city || '',
+      service: service || 'N/A',
+      budget: budget || '',
+      followupDate: followupDate || '',
+      message: message || '',
+      source,
+      status: status || 'New',
+      notes: notes || '',
+      timestamp: new Date()
+    });
 
-  leads.push(newLead);
-  if (writeLeads(leads)) {
     res.status(201).json(newLead);
-  } else {
-    res.status(500).json({ error: 'Failed to write lead to database.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to write lead to database: ' + err.message });
   }
 });
 
 // PATCH: Update lead fields dynamically
-app.patch('/api/leads/:id', (req, res) => {
-  const { id } = req.params;
-  const updateData = req.body;
+app.patch('/api/leads/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updateData = req.body;
 
-  const leads = readLeads();
-  const leadIndex = leads.findIndex((l) => l.id === id);
+    const allowedFields = ['name', 'company', 'phone', 'email', 'city', 'service', 'budget', 'followupDate', 'message', 'source', 'status', 'notes'];
+    const filteredUpdate = {};
+    allowedFields.forEach(field => {
+      if (updateData[field] !== undefined) {
+        filteredUpdate[field] = updateData[field];
+      }
+    });
 
-  if (leadIndex === -1) {
-    return res.status(404).json({ error: 'Lead not found.' });
-  }
-
-  // Merge allowed fields
-  const allowedFields = ['name', 'company', 'phone', 'email', 'city', 'service', 'budget', 'followupDate', 'message', 'source', 'status', 'notes'];
-  allowedFields.forEach(field => {
-    if (updateData[field] !== undefined) {
-      leads[leadIndex][field] = updateData[field];
+    const updatedLead = await Lead.findOneAndUpdate({ id }, filteredUpdate, { new: true });
+    if (!updatedLead) {
+      return res.status(404).json({ error: 'Lead not found.' });
     }
-  });
 
-  if (writeLeads(leads)) {
-    res.json(leads[leadIndex]);
-  } else {
-    res.status(500).json({ error: 'Failed to update lead.' });
+    res.json(updatedLead);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update lead: ' + err.message });
   }
 });
 
 // DELETE: Remove a lead
-app.delete('/api/leads/:id', (req, res) => {
-  const { id } = req.params;
-  const leads = readLeads();
-  const filteredLeads = leads.filter((l) => l.id !== id);
+app.delete('/api/leads/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await Lead.deleteOne({ id });
 
-  if (leads.length === filteredLeads.length) {
-    return res.status(404).json({ error: 'Lead not found.' });
-  }
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'Lead not found.' });
+    }
 
-  if (writeLeads(filteredLeads)) {
     res.json({ message: 'Lead deleted successfully.', id });
-  } else {
-    res.status(500).json({ error: 'Failed to delete lead.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete lead: ' + err.message });
   }
 });
 
 // POST: Bulk delete leads
-app.post('/api/leads/bulk-delete', (req, res) => {
-  const { ids } = req.body;
-  if (!Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'Invalid or empty ids array.' });
-  }
+app.post('/api/leads/bulk-delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'Invalid or empty ids array.' });
+    }
 
-  const leads = readLeads();
-  const initialCount = leads.length;
-  const filteredLeads = leads.filter(l => !ids.includes(l.id));
-
-  if (initialCount === filteredLeads.length) {
-    return res.status(404).json({ error: 'No leads found to delete.' });
-  }
-
-  if (writeLeads(filteredLeads)) {
-    res.json({ message: `${initialCount - filteredLeads.length} leads deleted successfully.` });
-  } else {
-    res.status(500).json({ error: 'Failed to perform bulk delete.' });
+    const result = await Lead.deleteMany({ id: { $in: ids } });
+    res.json({ message: `${result.deletedCount} leads deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to perform bulk delete: ' + err.message });
   }
 });
 
 // POST: Bulk update status of leads
-app.post('/api/leads/bulk-status', (req, res) => {
-  const { ids, status } = req.body;
-  if (!Array.isArray(ids) || ids.length === 0 || !status) {
-    return res.status(400).json({ error: 'Invalid payload: ids and status are required.' });
-  }
-
-  const leads = readLeads();
-  let updatedCount = 0;
-
-  leads.forEach(lead => {
-    if (ids.includes(lead.id)) {
-      lead.status = status;
-      updatedCount++;
+app.post('/api/leads/bulk-status', async (req, res) => {
+  try {
+    const { ids, status } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0 || !status) {
+      return res.status(400).json({ error: 'Invalid payload: ids and status are required.' });
     }
-  });
 
-  if (updatedCount === 0) {
-    return res.status(404).json({ error: 'No matching leads found to update.' });
-  }
-
-  if (writeLeads(leads)) {
-    res.json({ message: `${updatedCount} leads updated to status "${status}" successfully.` });
-  } else {
-    res.status(500).json({ error: 'Failed to update leads status.' });
+    const result = await Lead.updateMany({ id: { $in: ids } }, { status });
+    res.json({ message: `${result.modifiedCount} leads updated to status "${status}" successfully.` });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update leads status: ' + err.message });
   }
 });
 
 // GET: Export leads in Excel-compatible CSV format
-app.get('/api/leads/export', (req, res) => {
-  const leads = readLeads();
-  leads.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+app.get('/api/leads/export', async (req, res) => {
+  try {
+    const leads = await Lead.find().sort({ timestamp: -1 });
 
-  // Define CSV headers including expanded fields
-  const headers = [
-    'Lead ID', 'Name', 'Company', 'Phone', 'Email', 'City', 
-    'Service Interested', 'Budget', 'Follow Up Date', 'Message', 
-    'Source', 'Status', 'Notes', 'Date & Time'
-  ];
-  
-  // Helper to escape values for CSV
-  const escapeCSV = (val) => {
-    if (val === undefined || val === null) return '';
-    let str = String(val).replace(/"/g, '""'); // Double quotes escape
-    if (str.includes(',') || str.includes('\n') || str.includes('"')) {
-      str = `"${str}"`;
-    }
-    return str;
-  };
+    const headers = [
+      'Lead ID', 'Name', 'Company', 'Phone', 'Email', 'City', 
+      'Service Interested', 'Budget', 'Follow Up Date', 'Message', 
+      'Source', 'Status', 'Notes', 'Date & Time'
+    ];
+    
+    const escapeCSV = (val) => {
+      if (val === undefined || val === null) return '';
+      let str = String(val).replace(/"/g, '""');
+      if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+        str = `"${str}"`;
+      }
+      return str;
+    };
 
-  // Build CSV rows
-  const rows = leads.map(lead => [
-    lead.id,
-    lead.name,
-    lead.company,
-    lead.phone,
-    lead.email,
-    lead.city || '',
-    lead.service,
-    lead.budget || '',
-    lead.followupDate || '',
-    lead.message,
-    lead.source,
-    lead.status,
-    lead.notes,
-    new Date(lead.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-  ]);
+    const rows = leads.map(lead => [
+      lead.id,
+      lead.name,
+      lead.company,
+      lead.phone,
+      lead.email,
+      lead.city || '',
+      lead.service,
+      lead.budget || '',
+      lead.followupDate || '',
+      lead.message,
+      lead.source,
+      lead.status,
+      lead.notes,
+      new Date(lead.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+    ]);
 
-  // Join headers and rows
-  const csvContent = '\uFEFF' + [
-    headers.map(escapeCSV).join(','),
-    ...rows.map(row => row.map(escapeCSV).join(','))
-  ].join('\r\n');
+    const csvContent = '\uFEFF' + [
+      headers.map(escapeCSV).join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
+    ].join('\r\n');
 
-  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename=Ace_Automation_Leads_${new Date().toISOString().split('T')[0]}.csv`);
-  res.status(200).send(csvContent);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename=Ace_Automation_Leads_${new Date().toISOString().split('T')[0]}.csv`);
+    res.status(200).send(csvContent);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 const systemPrompt = `You are "Aace AI" (or Aace), a highly warm, friendly, professional, and human-like AI sales and customer support assistant for "Ace Automation".
@@ -712,9 +650,7 @@ app.post('/api/chat', async (req, res) => {
     if (functionCallPart) {
       const { name: funcName, args } = functionCallPart.functionCall;
       if (funcName === "book_consultation") {
-        // Create new lead in local file database
-        const leads = readLeads();
-        const newLead = {
+        const newLead = await Lead.create({
           id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           name: args.name,
           company: args.company || 'N/A',
@@ -728,11 +664,8 @@ app.post('/api/chat', async (req, res) => {
           source: 'Chatbot',
           status: args.is_hot_lead ? 'Hot Lead' : 'New',
           notes: 'Auto-created by Aace AI Chatbot during conversation.',
-          timestamp: new Date().toISOString()
-        };
-
-        leads.push(newLead);
-        writeLeads(leads);
+          timestamp: new Date()
+        });
 
         // Feed function response back to Gemini
         contents.push(candidate.content); // Model functionCall part
@@ -930,8 +863,7 @@ app.post('/api/whatsapp-webhook', async (req, res) => {
           if (functionCallPart) {
             const { name: funcName, args } = functionCallPart.functionCall;
             if (funcName === "book_consultation") {
-              const leads = readLeads();
-              const newLead = {
+              const newLead = await Lead.create({
                 id: `wa_${Date.now()}`,
                 name: args.name,
                 company: args.company || 'N/A',
@@ -945,10 +877,8 @@ app.post('/api/whatsapp-webhook', async (req, res) => {
                 source: 'WhatsApp',
                 status: args.is_hot_lead ? 'Hot Lead' : 'New',
                 notes: 'Auto-created by WhatsApp AI.',
-                timestamp: new Date().toISOString()
-              };
-              leads.push(newLead);
-              writeLeads(leads);
+                timestamp: new Date()
+              });
 
               contents.push(candidate.content);
               contents.push({
@@ -1013,9 +943,8 @@ app.post('/api/vapi-webhook', async (req, res) => {
       `Summary: ${summary.slice(0, 300)}`,
     ].join(' | ');
 
-    // ── Save to CRM (leads.json) ──
-    const leads = readLeads();
-    const newLead = {
+    // ── Save to CRM (MongoDB) ──
+    const newLead = await Lead.create({
       id: `vapi_${callId}`,
       name,
       company: business,
@@ -1029,10 +958,8 @@ app.post('/api/vapi-webhook', async (req, res) => {
       source: 'AI Voice Agent',
       status: meetingBooked ? 'Hot Lead' : 'New',
       notes,
-      timestamp: new Date().toISOString(),
-    };
-    leads.push(newLead);
-    writeLeads(leads);
+      timestamp: new Date()
+    });
     console.log('✅ CRM updated — Lead:', name, '|', phone);
 
     // ── Save to Google Sheets ──
@@ -1078,7 +1005,13 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend server running on http://localhost:${PORT}`);
+// Connect to MongoDB and then start server
+connectDB().then(async () => {
+  await checkAndSeedMockData();
+  app.listen(PORT, () => {
+    console.log(`Backend server running on http://localhost:${PORT}`);
+  });
+}).catch(err => {
+  console.error('❌ Failed to connect to MongoDB:', err);
 });
 
