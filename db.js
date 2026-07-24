@@ -14,7 +14,8 @@ export async function connectDB() {
   const uri = process.env.MONGODB_URI;
 
   if (!uri || uri.includes('<db_password>')) {
-    throw new Error('Please define a valid MONGODB_URI (replace <db_password>) inside .env');
+    console.warn('⚠️ MONGODB_URI missing or contains <db_password> placeholder. Operating in fallback mode.');
+    return null;
   }
 
   if (!cached.promise) {
