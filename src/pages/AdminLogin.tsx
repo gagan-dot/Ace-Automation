@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import styles from './AdminLogin.module.css';
-import { Lock, Eye, EyeOff, ShieldCheck, AlertTriangle, User, Mail, Phone, KeyRound, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
+import { Lock, Eye, EyeOff, ShieldCheck, AlertTriangle, Mail, Phone, KeyRound, ArrowLeft, CheckCircle, Loader2 } from 'lucide-react';
 
 interface AdminLoginProps {
   onLogin: () => void;
 }
 
-type FlowStep = 'loading' | 'setup' | 'login' | 'forgot-choose' | 'forgot-verify' | 'forgot-otp' | 'forgot-reset' | 'success';
+type FlowStep = 'loading' | 'login' | 'forgot-choose' | 'forgot-verify' | 'forgot-otp' | 'forgot-reset' | 'success';
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   const [step, setStep] = useState<FlowStep>('loading');
@@ -18,16 +18,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   const [successMessage, setSuccessMessage] = useState('');
 
   // Admin info (masked, from server)
-  const [adminName, setAdminName] = useState('');
-  const [maskedEmail, setMaskedEmail] = useState('');
-  const [maskedPhone, setMaskedPhone] = useState('');
-
-  // Setup form
-  const [setupName, setSetupName] = useState('');
-  const [setupEmail, setSetupEmail] = useState('');
-  const [setupPhone, setSetupPhone] = useState('');
-  const [setupPassword, setSetupPassword] = useState('');
-  const [setupConfirm, setSetupConfirm] = useState('');
+  const [maskedEmail] = useState('');
+  const [maskedPhone] = useState('');
 
   // Login form
   const [loginPassword, setLoginPassword] = useState('');
@@ -42,9 +34,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
 
   const checkAdminStatus = async () => {
     try {
-      const res = await fetch('/api/admin/status');
-      const data = await res.json();
-      // Always go to login step; if admin not set up, show a generic error later.
+      await fetch('/api/admin/status');
       setStep('login');
     } catch {
       setStep('login');
@@ -60,56 +50,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
   const triggerShake = () => {
     setIsShaking(true);
     setTimeout(() => setIsShaking(false), 500);
-  };
-
-  // ============ SETUP HANDLER ============
-  const handleSetup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!setupName.trim() || !setupEmail.trim() || !setupPhone.trim() || !setupPassword) {
-      setError('All fields are required.');
-      triggerShake();
-      return;
-    }
-    if (setupPassword.length < 6) {
-      setError('Password must be at least 6 characters.');
-      triggerShake();
-      return;
-    }
-    if (setupPassword !== setupConfirm) {
-      setError('Passwords do not match.');
-      triggerShake();
-      return;
-    }
-
-    setIsSubmitting(true);
-    try {
-      const res = await fetch('/api/admin/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: setupName.trim(),
-          email: setupEmail.trim(),
-          phone: setupPhone.trim(),
-          password: setupPassword
-        })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-
-      setSuccessMessage('Admin account created! Redirecting to dashboard...');
-      setStep('success');
-      setTimeout(() => {
-        sessionStorage.setItem('ace_admin_auth', 'true');
-        onLogin();
-      }, 2000);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Setup failed.');
-      triggerShake();
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   // ============ LOGIN HANDLER ============
@@ -292,7 +232,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
               <div className={styles.iconGlow}></div>
               <ShieldCheck size={40} className={styles.shieldIcon} />
             </div>
-            <h1 className={styles.title}>Welcome Back{adminName ? `, ${adminName}` : ''}</h1>
+            <h1 className={styles.title}>Welcome Back</h1>
             <p className={styles.subtitle}>Enter your admin password to access the CRM dashboard.</p>
 
             <form onSubmit={handleLogin} className={styles.form}>

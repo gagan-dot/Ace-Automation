@@ -1,0 +1,22 @@
+# Ace Automation (Aace Automation)
+
+> Elite AI Automation, Web Development, Custom Chatbots, WhatsApp Systems, and AI Voice Agents.
+
+## Overview
+Ace Automation (also known as Aace Automation) is a premier AI automation and web development agency. We build futuristic websites, intelligent AI chatbots, automated WhatsApp systems, AI voice agents, and custom CRM/n8n workflow automations for businesses.
+
+## Key Services
+- **Website Development & Revamp**: Custom high-speed, modern, responsive websites with dynamic UI, SEO, and lead capture systems.
+- **AI Chatbots & Assistant Widgets**: 24/7 intelligent sales and customer support chatbots built with Google Gemini, OpenAI, and custom knowledge models.
+- **WhatsApp Automation**: Automated messaging, lead generation, booking workflows, and instant customer notifications on WhatsApp.
+- **AI Voice Agents**: Autonomous voice calling agents for automated client outreach, qualification, and appointment booking.
+- **CRM & Workflow Automation**: End-to-end integration of lead management systems, n8n, Webhooks, and database automations.
+
+## Pricing Model
+- **"Pay If U Like" Model**: Risk-free engagement where custom AI solutions and websites are built, integrated, and deployed. Payment is processed only when the client is 100% satisfied.
+
+## Contact Information
+- **Phone**: +91 7000563768 | +91 9165699823
+- **Email**: info@aaceautomation.com
+- **Location**: Jabalpur, MP, India 482003
+- **Website**: https://aaceautomation.com/
