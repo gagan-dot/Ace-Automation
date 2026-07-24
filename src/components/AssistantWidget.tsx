@@ -1,14 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, Phone, PhoneOff, Mic, MicOff, Volume2, AlertCircle } from 'lucide-react';
 import styles from './AssistantWidget.module.css';
-import * as VapiModule from '@vapi-ai/web';
 
-// @vapi-ai/web v2.x has a double-wrapped default in Vite ESM builds
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const VapiConstructor: any = (VapiModule as any)?.default?.default ?? (VapiModule as any)?.default ?? VapiModule;
-
-const VAPI_PUBLIC_KEY = import.meta.env.VITE_VAPI_PUBLIC_KEY;
-const VAPI_ASSISTANT_ID = import.meta.env.VITE_VAPI_ASSISTANT_ID;
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 const AssistantWidget: React.FC = () => {
   // ─── Chat State ───────────────────────────────────────────
@@ -19,17 +14,31 @@ const AssistantWidget: React.FC = () => {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const chatBodyRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Voice Call State ─────────────────────────────────────
+  // ─── Voice Call State (100% Free Browser AI Engine) ───────
   const [isVoiceOpen, setIsVoiceOpen] = useState(false);
   const [callStatus, setCallStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [isMuted, setIsMuted] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [errorMsg, setErrorMsg] = useState('');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const vapiRef = useRef<any>(null);
+  const [liveSubtitle, setLiveSubtitle] = useState('');
+
+  const recognitionRef = useRef<any>(null);
+  const isCallActiveRef = useRef<boolean>(false);
+  const isMutedRef = useRef<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const voiceHistoryRef = useRef<Array<{ role: string; content: string }>>([]);
+
+  // Keep refs updated for async events
+  useEffect(() => {
+    isCallActiveRef.current = callStatus === 'connected';
+  }, [callStatus]);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
 
   // Auto-scroll chat
   useEffect(() => {
@@ -37,6 +46,16 @@ const AssistantWidget: React.FC = () => {
       chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
     }
   }, [messages, isTyping]);
+
+  // Auto-focus input field when chat opens or finishes typing
+  useEffect(() => {
+    if (isChatOpen && !isTyping) {
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isChatOpen, isTyping]);
 
   // Timer for call duration
   useEffect(() => {
@@ -51,175 +70,182 @@ const AssistantWidget: React.FC = () => {
   const formatTime = (s: number) =>
     `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
 
-  // ─── Reset Vapi instance (fixes connection errors on retry) ─
-  const destroyVapi = () => {
-    if (vapiRef.current) {
-      try { vapiRef.current.stop(); } catch { /* ignore */ }
-      try { vapiRef.current.removeAllListeners?.(); } catch { /* ignore */ }
-      vapiRef.current = null;
+  // ─── Text To Speech Helper ─────────────────────────────
+  const speakText = (text: string, onEndCallback?: () => void) => {
+    if (!('speechSynthesis' in window)) {
+      if (onEndCallback) onEndCallback();
+      return;
     }
+
+    // Stop previous speech & recognition while speaking
+    window.speechSynthesis.cancel();
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+    }
+
+    setIsSpeaking(true);
+
+    // Clean markdown stars/bullets for natural speech
+    const cleanText = text
+      .replace(/[*_#`~]/g, '')
+      .replace(/\n+/g, ' ')
+      .trim();
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    
+    // Choose Hindi or Indian English voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const hiVoice = voices.find(v => v.lang.includes('hi') || v.lang.includes('HI') || v.name.includes('Hindi') || v.name.includes('Swara') || v.name.includes('Heera'));
+    if (hiVoice) {
+      utterance.voice = hiVoice;
+      utterance.lang = hiVoice.lang;
+    } else {
+      utterance.lang = 'hi-IN';
+    }
+    utterance.rate = 1.0;
+    utterance.pitch = 1.05;
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      if (onEndCallback) onEndCallback();
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      if (onEndCallback) onEndCallback();
+    };
+
+    window.speechSynthesis.speak(utterance);
   };
 
-  // ─── Start Voice Call ──────────────────────────────────────
-  const startCall = async () => {
-    setCallStatus('connecting');
-    setErrorMsg('');
-    destroyVapi(); // always fresh instance
+  // ─── Speech Recognition Listening Loop ─────────────────
+  const listenToUser = () => {
+    if (!isCallActiveRef.current || isMutedRef.current) return;
+
+    if (!SpeechRecognition) {
+      setErrorMsg('Browser speech recognition not supported. Please use Chrome or Edge.');
+      setCallStatus('error');
+      return;
+    }
 
     try {
-      vapiRef.current = new VapiConstructor(VAPI_PUBLIC_KEY);
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      }
 
-      vapiRef.current.on('call-start', () => {
-        setCallStatus('connected');
-        setCallDuration(0);
-        setIsMuted(false);
-        setIsSpeaking(false);
-      });
+      const rec = new SpeechRecognition();
+      recognitionRef.current = rec;
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.lang = 'hi-IN';
 
-      vapiRef.current.on('call-end', () => {
-        setCallStatus('idle');
-        setIsSpeaking(false);
-        destroyVapi();
-      });
+      rec.onstart = () => {
+        setLiveSubtitle('Suno, bol sakte hain... 🎙️');
+      };
 
-      vapiRef.current.on('speech-start', () => setIsSpeaking(true));
-      vapiRef.current.on('speech-end', () => setIsSpeaking(false));
+      rec.onresult = async (event: any) => {
+        const userTranscript = event.results[0][0].transcript;
+        if (!userTranscript || !userTranscript.trim()) {
+          if (isCallActiveRef.current && !isMutedRef.current) listenToUser();
+          return;
+        }
 
-      vapiRef.current.on('error', (err: unknown) => {
-        console.error('Vapi Error:', err);
-        // Safely extract string message from potentially nested error object
-        const extractMsg = (e: unknown): string => {
-          if (!e) return 'Unknown error';
-          if (typeof e === 'string') return e;
-          const errObj = e as Record<string, unknown>;
-          if (typeof errObj?.message === 'string') return errObj.message;
-          const nestedErr = errObj?.error as Record<string, unknown> | undefined;
-          if (typeof nestedErr?.message === 'string') return nestedErr.message;
-          if (typeof nestedErr?.msg === 'string') return nestedErr.msg;
-          return 'Connection failed. Please try again.';
-        };
-        setErrorMsg(extractMsg(err));
-        setCallStatus('error');
-        destroyVapi();
-      });
+        setLiveSubtitle(`Aap: "${userTranscript}"`);
+        voiceHistoryRef.current.push({ role: 'user', content: userTranscript });
 
-      // ── Human-touch bilingual agent with meeting booking ──
-      await vapiRef.current.start(VAPI_ASSISTANT_ID, {
+        // Send to Gemini AI Backend
+        try {
+          setLiveSubtitle('Aace AI soch rahi hai...');
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: voiceHistoryRef.current, source: 'Call' })
+          });
 
-        // Warm natural greeting — feels human, not robotic
-        firstMessage: `Namaste! Aace Automation mein aapka dil se swagat hai! 😊 Main Aace hoon — aapki personal AI assistant. Main aapki poori madad karne ke liye yahan hoon. Aap mujhse Hindi mein baat karein ya English mein — dono bilkul theek hai. Toh batain, aaj aapke liye main kya kar sakti hoon?`,
+          if (!res.ok) throw new Error('Network response failed');
+          const data = await res.json();
+          const aiReply = data.text || 'Main samajh nahi paayi, kripya fir se kahein.';
 
-        transcriber: {
-          provider: 'deepgram',
-          model: 'nova-2-general',
-          language: 'hi',
-        },
+          voiceHistoryRef.current.push({ role: 'model', content: aiReply });
+          setLiveSubtitle(`Aace: "${aiReply}"`);
 
-        model: {
-          provider: 'openai',
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: `You are Aace — a warm, empathetic, and professional female AI voice assistant for Ace Automation. You sound like a real human consultant from India, not a robot.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🌐 ABOUT ACE AUTOMATION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Ace Automation is a technology company that helps businesses grow using AI and automation. We serve small to medium businesses in India and worldwide. Our USP: "Pay If You Like" — risk-free model.
-
-Contact: +91 7000563768 | +91 9165699823 | info@aaceautomation.com
-Location: C73 Phase 3, Dhanwantri Nagar, Jabalpur, MP
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🛠️ OUR 7 SERVICES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. WEBSITE DEVELOPMENT — Professional modern websites from scratch. SEO-optimized, fast, responsive.
-2. WEBSITE REVAMP — Transform old/outdated websites into modern sales engines. Better design, speed, UX.
-3. AI AUTOMATION — Automate repetitive tasks: lead follow-ups, invoices, emails, reports using AI.
-4. AI VOICE AGENT — AI calling agents like me that answer customer calls 24/7 in Hindi + English.
-5. CRM DASHBOARD — Custom dashboards to track leads, deals, customers, and team activities.
-6. WORKFLOW AUTOMATION — Connect apps using n8n/Zapier/Make. Auto WhatsApp + email + CRM on form fill.
-7. BUSINESS AUTOMATION — End-to-end automation strategy: AI + workflows + CRM combined.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 MEETING BOOKING FLOW — FOLLOW THIS STEP BY STEP
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-When a user shows ANY interest in a service or asks for pricing/demo/consultation — start collecting these details ONE BY ONE, naturally in conversation (not as a form):
-
-STEP 1 → Ask their NAME warmly: "Pehle aapka naam jaanna chahungi 😊 Aap kaise bulaate hain apne aap ko?"
-STEP 2 → Ask PHONE/WHATSAPP: "Aur aapka WhatsApp number share karenge? Taaki hamari team aapse seedha connect ho sake."
-STEP 3 → Ask BUSINESS TYPE: "Bahut achha! Aap kaunsa business run karte hain ya kis field mein kaam karte hain?"
-STEP 4 → Ask SERVICE NEEDED: "Aur specifically kya chahiye aapko? Website banana hai, automation, ya kuch aur?"
-STEP 5 → Ask BUDGET (gently): "Budget ki baat karein toh approximately kitna investment aap soch rahe hain? Seedha batayein, hum uske hisaab se best solution suggest karenge."
-STEP 6 → CONFIRM & BOOK: "Perfect! Main aapki details note kar leti hoon. Hamari team aapko jald hi WhatsApp ya call karegi meeting schedule karne ke liye. Koi aur sawaal hai aapka? 😊"
-
-IMPORTANT meeting booking rules:
-- Collect details conversationally — NOT as a checklist. Be natural like a real person.
-- After getting name, phone, business, service, budget — tell the user meeting is CONFIRMED and team will contact them.
-- NEVER ask all questions at once. Ask one by one with warmth.
-- If user gives info voluntarily, acknowledge it warmly before moving to next.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚫 SCOPE RULES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- ONLY talk about Ace Automation and its services.
-- If user asks off-topic (health, recipes, news, coding help, other companies) → politely redirect:
-  "Haha, yeh toh mere expertise se bahar hai! Main sirf Ace Automation ki services ke baare mein aapki madad kar sakti hoon. Kya aap hamare kisi service ke baare mein jaanna chahte hain? 😊"
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🗣️ LANGUAGE & VOICE RULES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- HINDI user → Reply in HINDI only.
-- ENGLISH user → Reply in ENGLISH only.
-- HINGLISH user → Reply in Hinglish naturally.
-- NEVER switch language unless user switches first.
-- Speak in short sentences — this is voice, not text. No bullet points. Natural speech flow.
-- Use filler words naturally: "haan ji", "bilkul", "of course", "sure", "achha".
-- Sound warm, curious, and caring — like talking to a helpful friend.
-- Max 2-3 short sentences per response for natural conversation pacing.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-💬 HUMAN TOUCH PHRASES (use naturally)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- "Wah! Bahut achha idea hai yeh!"
-- "Haan ji, main samajh gayi!"  
-- "Bilkul, yeh toh hum kar sakte hain!"
-- "Achha theek hai, ek second..."
-- "Of course! No problem at all."
-- "Bahut badhiya! Aage batain..."
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+          // Speak AI response out loud
+          speakText(aiReply, () => {
+            if (isCallActiveRef.current && !isMutedRef.current) {
+              listenToUser();
             }
-          ]
-        },
+          });
 
-        // Human-like female Hindi voice (ElevenLabs sounds more natural than Azure)
-        voice: {
-          provider: 'azure',
-          voiceId: 'hi-IN-SwaraNeural',
-          speed: 0.95,   // slightly slower = more natural
-        },
+        } catch (err) {
+          console.error('Voice AI Error:', err);
+          speakText('Connection problem. Kya aap fir se bolenge?', () => {
+            if (isCallActiveRef.current && !isMutedRef.current) {
+              listenToUser();
+            }
+          });
+        }
+      };
 
-        // Webhook — Vapi will POST call summary + transcript here after call ends
-        serverUrl: `${window.location.origin}/api/vapi-webhook`,
-      });
+      rec.onerror = (event: any) => {
+        if (event.error === 'no-speech') {
+          if (isCallActiveRef.current && !isMutedRef.current) {
+            setTimeout(() => listenToUser(), 400);
+          }
+          return;
+        }
+        if (event.error !== 'aborted') {
+          console.warn('Speech Rec Error:', event.error);
+        }
+      };
 
-    } catch (err: unknown) {
-      console.error('Vapi start failed:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to connect. Please try again.';
-      setErrorMsg(errorMessage);
-      setCallStatus('error');
-      destroyVapi();
+      rec.start();
+
+    } catch (e) {
+      console.error('Failed to start speech recognition:', e);
     }
   };
 
+  // ─── Start Call ──────────────────────────────────────────
+  const startCall = async () => {
+    setErrorMsg('');
+    setCallStatus('connecting');
+
+    if (!SpeechRecognition) {
+      setErrorMsg('Speech recognition is not supported in your browser. Please use Google Chrome or Microsoft Edge.');
+      setCallStatus('error');
+      return;
+    }
+
+    setCallStatus('connected');
+    setCallDuration(0);
+    setIsMuted(false);
+    voiceHistoryRef.current = [];
+
+    // Greeting
+    const greeting = 'Namaste! Aace Automation mein aapka swagat hai! Main Aace hoon, aapki personal AI assistant. Aap mujhse Hindi ya English kisi me bhi baat kar sakte hain. Batayein, aaj aapki kya madad karoon?';
+    setLiveSubtitle(`Aace: "${greeting}"`);
+
+    speakText(greeting, () => {
+      listenToUser();
+    });
+  };
+
+  // ─── End Call ────────────────────────────────────────────
   const endCall = () => {
-    destroyVapi();
+    isCallActiveRef.current = false;
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      recognitionRef.current = null;
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
     setCallStatus('idle');
     setCallDuration(0);
     setIsSpeaking(false);
     setIsMuted(false);
     setErrorMsg('');
+    setLiveSubtitle('');
   };
 
   const closeVoice = () => {
@@ -228,10 +254,19 @@ IMPORTANT meeting booking rules:
   };
 
   const toggleMute = () => {
-    const next = !isMuted;
-    setIsMuted(next);
-    if (vapiRef.current) {
-      try { vapiRef.current.setMuted(next); } catch { /* ignore */ }
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    isMutedRef.current = nextMuted;
+
+    if (nextMuted) {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch { /* ignore */ }
+      }
+      setLiveSubtitle('Microphone muted 🔇');
+    } else {
+      if (!isSpeaking) {
+        listenToUser();
+      }
     }
   };
 
@@ -245,6 +280,9 @@ IMPORTANT meeting booking rules:
     setInput('');
     setIsTyping(true);
 
+    // Retain input focus immediately
+    inputRef.current?.focus();
+
     try {
       const historyToSend = [
         ...messages.map(m => ({ role: m.type === 'user' ? 'user' : 'model', content: m.text })),
@@ -253,7 +291,7 @@ IMPORTANT meeting booking rules:
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: historyToSend })
+        body: JSON.stringify({ messages: historyToSend, source: 'Chatbot' })
       });
       if (!res.ok) throw new Error('API error');
       const data = await res.json();
@@ -262,6 +300,8 @@ IMPORTANT meeting booking rules:
       setMessages(prev => [...prev, { type: 'bot', text: 'Connection issue. Please try again!' }]);
     } finally {
       setIsTyping(false);
+      // Re-focus after response completes
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
 
@@ -271,14 +311,26 @@ IMPORTANT meeting booking rules:
     if (callStatus === 'error') return errorMsg || 'Connection Error';
     if (callStatus === 'connected') {
       if (isMuted) return 'Microphone Muted 🔇';
-      if (isSpeaking) return 'Aace AI is speaking...';
-      return 'Listening... Bol sakte hain 🎙️';
+      if (isSpeaking) return 'Aace AI is speaking... 🔊';
+      return liveSubtitle || 'Listening... Bol sakte hain 🎙️';
     }
-    return 'Hindi & English Voice AI';
+    return '100% Free Voice AI (Hindi & English)';
   };
 
   return (
     <>
+      {/* 15% Background Blur Overlay when Chat or Voice is open */}
+      {(isChatOpen || isVoiceOpen) && (
+        <div 
+          className={styles.backdropOverlay}
+          onClick={() => {
+            setIsChatOpen(false);
+            if (isVoiceOpen) endCall();
+            setIsVoiceOpen(false);
+          }}
+        />
+      )}
+
       {/* ══════════════════════════════════════════
           VOICE CALL PANEL
       ══════════════════════════════════════════ */}
@@ -319,7 +371,7 @@ IMPORTANT meeting booking rules:
           {/* Name */}
           <div className={styles.voiceName}>Aace AI Assistant</div>
 
-          {/* Status */}
+          {/* Status / Live Subtitle */}
           <div className={`${styles.voiceStatusText} ${callStatus === 'error' ? styles.voiceError : ''}`}>
             {statusText()}
           </div>
@@ -331,7 +383,7 @@ IMPORTANT meeting booking rules:
 
           {/* Language badge */}
           {callStatus !== 'error' && (
-            <div className={styles.langBadge}>🇮🇳 Hindi &nbsp;·&nbsp; 🇬🇧 English</div>
+            <div className={styles.langBadge}>🇮🇳 Hindi &nbsp;·&nbsp; 🇬🇧 English (Free AI Engine)</div>
           )}
 
           {/* Controls */}
@@ -406,6 +458,7 @@ IMPORTANT meeting booking rules:
 
         <form className={styles.chatFooter} onSubmit={handleSend}>
           <input
+            ref={inputRef}
             type="text"
             placeholder="Type in Hindi or English..."
             value={input}
@@ -428,7 +481,11 @@ IMPORTANT meeting booking rules:
           <span className={`${styles.fabLabel} ${styles.fabLabelLeft}`}>AI Voice Call</span>
           <button
             className={`${styles.fab} ${styles.fabVoice} ${isVoiceOpen ? styles.fabActive : ''} ${callStatus === 'connected' ? styles.fabCalling : ''}`}
-            onClick={() => { setIsVoiceOpen(v => !v); if (isVoiceOpen) endCall(); }}
+            onClick={() => {
+              if (isChatOpen) setIsChatOpen(false);
+              setIsVoiceOpen(v => !v);
+              if (isVoiceOpen) endCall();
+            }}
             title="AI Voice Call – Hindi & English"
           >
             {isVoiceOpen ? <X size={24} /> : <Phone size={24} />}
@@ -441,7 +498,10 @@ IMPORTANT meeting booking rules:
           <span className={`${styles.fabLabel} ${styles.fabLabelLeft}`}>Chat with AI</span>
           <button
             className={`${styles.fab} ${styles.fabChat} ${isChatOpen ? styles.fabActive : ''}`}
-            onClick={() => setIsChatOpen(c => !c)}
+            onClick={() => {
+              if (isVoiceOpen) { endCall(); setIsVoiceOpen(false); }
+              setIsChatOpen(c => !c);
+            }}
             title="Chat with Aace AI"
           >
             {isChatOpen ? <X size={24} /> : <MessageSquare size={24} />}

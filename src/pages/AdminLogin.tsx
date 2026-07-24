@@ -44,16 +44,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
     try {
       const res = await fetch('/api/admin/status');
       const data = await res.json();
-      if (data.exists) {
-        setAdminName(data.name || 'Admin');
-        setMaskedEmail(data.maskedEmail || '');
-        setMaskedPhone(data.maskedPhone || '');
-        setStep('login');
-      } else {
-        setStep('setup');
-      }
+      // Always go to login step; if admin not set up, show a generic error later.
+      setStep('login');
     } catch {
-      setStep('setup');
+      setStep('login');
     }
   };
 
@@ -289,59 +283,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
           </div>
         )}
 
-        {/* ========== FIRST-TIME SETUP ========== */}
-        {step === 'setup' && (
-          <>
-            <div className={styles.iconWrapper}>
-              <div className={styles.iconGlow}></div>
-              <ShieldCheck size={40} className={styles.shieldIcon} />
-            </div>
-            <h1 className={styles.title}>Create Admin Account</h1>
-            <p className={styles.subtitle}>First time? Set up your admin credentials to secure the CRM dashboard.</p>
 
-            <form onSubmit={handleSetup} className={styles.form}>
-              <div className={styles.inputGroup}>
-                <User size={18} className={styles.inputIcon} />
-                <input type="text" value={setupName} onChange={(e) => setSetupName(e.target.value)} placeholder="Full Name" className={styles.input} autoFocus />
-              </div>
-              <div className={styles.inputGroup}>
-                <Mail size={18} className={styles.inputIcon} />
-                <input type="email" value={setupEmail} onChange={(e) => setSetupEmail(e.target.value)} placeholder="Email Address" className={styles.input} />
-              </div>
-              <div className={styles.inputGroup}>
-                <Phone size={18} className={styles.inputIcon} />
-                <input type="tel" value={setupPhone} onChange={(e) => setSetupPhone(e.target.value)} placeholder="Phone Number" className={styles.input} />
-              </div>
-              <div className={styles.inputGroup}>
-                <Lock size={18} className={styles.inputIcon} />
-                <input type={showPassword ? 'text' : 'password'} value={setupPassword} onChange={(e) => setSetupPassword(e.target.value)} placeholder="Create Password (min 6 chars)" className={styles.input} />
-                <button type="button" className={styles.togglePassword} onClick={() => setShowPassword(!showPassword)} tabIndex={-1}>
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-              <div className={styles.inputGroup}>
-                <KeyRound size={18} className={styles.inputIcon} />
-                <input type={showConfirmPassword ? 'text' : 'password'} value={setupConfirm} onChange={(e) => setSetupConfirm(e.target.value)} placeholder="Confirm Password" className={styles.input} />
-                <button type="button" className={styles.togglePassword} onClick={() => setShowConfirmPassword(!showConfirmPassword)} tabIndex={-1}>
-                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-
-              {error && (
-                <div className={styles.errorMsg}>
-                  <AlertTriangle size={16} />
-                  <span>{error}</span>
-                </div>
-              )}
-
-              <button type="submit" className={styles.loginBtn} disabled={isSubmitting}>
-                {isSubmitting ? <><Loader2 size={18} className={styles.spinner} /> Creating Account...</> : 'Create Admin Account'}
-              </button>
-            </form>
-
-            <a href="/" className={styles.backLink}>← Return to Website</a>
-          </>
-        )}
 
         {/* ========== LOGIN ========== */}
         {step === 'login' && (

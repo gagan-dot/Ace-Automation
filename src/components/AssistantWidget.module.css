@@ -103,22 +103,39 @@
   100% { transform: scale(1.65); opacity: 0; }
 }
 
+/* ─── Backdrop Blur Overlay ────────────────────────────────── */
+.backdropOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9990;
+  animation: backdropFadeIn 0.3s ease forwards;
+  cursor: pointer;
+}
+
+@keyframes backdropFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
 /* ─── Chat Window ──────────────────────────────────────────── */
 .chatWindow {
   position: fixed;
-  bottom: 9rem;
-  right: 2rem;
-  width: 350px;
-  height: 500px;
-  max-height: calc(100vh - 140px);
-  background: rgba(12, 12, 14, 0.96);
+  bottom: 2rem;
+  right: 6.5rem;
+  width: 360px;
+  height: 520px;
+  max-height: calc(100vh - 100px);
+  background: rgba(12, 12, 14, 0.98);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
   border-radius: 20px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(124, 58, 237, 0.15);
   transform-origin: bottom right;
   transform: scale(0.85) translateY(20px);
   opacity: 0;
@@ -345,10 +362,10 @@
 /* ─── Voice Panel ──────────────────────────────────────────── */
 .voicePanel {
   position: fixed;
-  bottom: 9rem;
-  right: 2rem;
-  width: 320px;
-  background: rgba(8, 8, 12, 0.97);
+  bottom: 2rem;
+  right: 6.5rem;
+  width: 330px;
+  background: rgba(8, 8, 12, 0.98);
   backdrop-filter: blur(24px);
   border: 1px solid rgba(0, 212, 255, 0.15);
   border-radius: 24px;

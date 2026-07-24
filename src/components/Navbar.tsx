@@ -29,9 +29,6 @@ const Navbar: React.FC = () => {
           <a href="#portfolio" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>Portfolio</a>
           <a href="#about" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>About</a>
           <a href="#contact" className={styles.navLink} onClick={() => setMobileMenuOpen(false)}>Contact</a>
-          <Link to="/admin" className={styles.dashboardBtn} onClick={() => setMobileMenuOpen(false)}>
-            <LayoutDashboard size={16} /> Dashboard
-          </Link>
           <a href="tel:7000563768" className={`btn btn-primary ${styles.ctaBtn}`} onClick={() => setMobileMenuOpen(false)}>
             Book Free Strategy Call
           </a>

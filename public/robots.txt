@@ -1,0 +1,26 @@
+# User-agent rules for Search Engines & AI LLM Engines
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+
+# Explicitly allow AI Search Engines for AI Overview & GEO (Generative Engine Optimization)
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+Sitemap: https://aaceautomation.com/sitemap.xml

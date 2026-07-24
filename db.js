@@ -1,7 +1,5 @@
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
 let cached = global.mongoose;
 
 if (!cached) {
@@ -13,8 +11,10 @@ export async function connectDB() {
     return cached.conn;
   }
 
-  if (!MONGODB_URI) {
-    throw new Error('Please define the MONGODB_URI environment variable inside .env');
+  const uri = process.env.MONGODB_URI;
+
+  if (!uri || uri.includes('<db_password>')) {
+    throw new Error('Please define a valid MONGODB_URI (replace <db_password>) inside .env');
   }
 
   if (!cached.promise) {
@@ -22,7 +22,7 @@ export async function connectDB() {
       bufferCommands: false,
     };
 
-    cached.promise = mongoose.connect(MONGODB_URI, opts).then((mongooseInstance) => {
+    cached.promise = mongoose.connect(uri, opts).then((mongooseInstance) => {
       console.log('✅ MongoDB connected successfully');
       return mongooseInstance;
     });
